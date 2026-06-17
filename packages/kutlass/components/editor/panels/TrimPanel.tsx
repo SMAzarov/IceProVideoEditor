@@ -46,6 +46,8 @@ export function TrimPanel() {
   const transitions = useEditorStore((s) => s.transitions);
   const addTransition = useEditorStore((s) => s.addTransition);
   const removeTransition = useEditorStore((s) => s.removeTransition);
+  const muted = useEditorStore((s) => s.muted);
+  const toggleMuted = useEditorStore((s) => s.toggleMuted);
 
   const clip = clips.find((c) => c.id === selectedClipId) ?? clips[0] ?? null;
 

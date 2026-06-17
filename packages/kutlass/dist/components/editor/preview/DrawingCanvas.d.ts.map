@@ -1,1 +1,1 @@
-{"version":3,"file":"DrawingCanvas.d.ts","sourceRoot":"","sources":["../../../../components/editor/preview/DrawingCanvas.tsx"],"names":[],"mappings":"AAMA,UAAU,kBAAkB;IAC1B,QAAQ,EAAE,OAAO,CAAC;CACnB;AAwFD,wBAAgB,aAAa,CAAC,EAAE,QAAQ,EAAE,EAAE,kBAAkB,+BA+N7D"}
+{"version":3,"file":"DrawingCanvas.d.ts","sourceRoot":"","sources":["../../../../components/editor/preview/DrawingCanvas.tsx"],"names":[],"mappings":"AAMA,UAAU,kBAAkB;IAC1B,QAAQ,EAAE,OAAO,CAAC;CACnB;AAwFD,wBAAgB,aAAa,CAAC,EAAE,QAAQ,EAAE,EAAE,kBAAkB,+BA4N7D"}

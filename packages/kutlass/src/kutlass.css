@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* ── Inter font (self-hosted via Google Fonts) ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+
 /* ── Dark theme (default) ── */
 [data-kt-theme="dark"] {
   --kt-bg-base: #1c1c1c;
@@ -69,69 +72,76 @@
 
 /* ── Light theme ── */
 [data-kt-theme="light"] {
-  --kt-bg-base: #f4f4f5;
+  --kt-bg-base: #f0f2f5;
   --kt-bg-panel: #ffffff;
-  --kt-bg-surface: #e4e4e7;
-  --kt-bg-deep: #fafafa;
-  --kt-bg-preview: #e4e4e7;
-  --kt-bg-overlay: rgba(255, 255, 255, 0.8);
+  --kt-bg-surface: #e8eaed;
+  --kt-bg-deep: #f8f9fa;
+  --kt-bg-preview: #e8eaed;
+  --kt-bg-overlay: rgba(255, 255, 255, 0.85);
 
-  --kt-bg-subtle: rgba(0, 0, 0, 0.04);
-  --kt-bg-subtle-hover: rgba(0, 0, 0, 0.08);
-  --kt-bg-subtle-active: rgba(0, 0, 0, 0.12);
+  --kt-bg-subtle: rgba(0, 0, 0, 0.05);
+  --kt-bg-subtle-hover: rgba(0, 0, 0, 0.09);
+  --kt-bg-subtle-active: rgba(0, 0, 0, 0.13);
 
-  --kt-border: rgba(0, 0, 0, 0.08);
-  --kt-border-strong: #d4d4d8;
+  --kt-border: rgba(0, 0, 0, 0.09);
+  --kt-border-strong: #c8cbd0;
   --kt-border-input: rgba(0, 0, 0, 0.12);
 
-  --kt-text-primary: #18181b;
-  --kt-text-secondary: #3f3f46;
-  --kt-text-tertiary: #52525b;
-  --kt-text-muted: #71717a;
-  --kt-text-faint: #a1a1aa;
+  --kt-text-primary: #111318;
+  --kt-text-secondary: #2c2f36;
+  --kt-text-tertiary: #4a4e57;
+  --kt-text-muted: #6b6f78;
+  --kt-text-faint: #90949e;
 
   --kt-accent: #f59e0b;
   --kt-accent-hover: #d97706;
   --kt-accent-text: #ffffff;
-  --kt-accent-subtle-bg: rgba(245, 158, 11, 0.12);
-  --kt-accent-subtle-border: rgba(245, 158, 11, 0.35);
-  --kt-accent-strong-border: rgba(245, 158, 11, 0.8);
+  --kt-accent-subtle-bg: rgba(245, 158, 11, 0.1);
+  --kt-accent-subtle-border: rgba(245, 158, 11, 0.3);
+  --kt-accent-strong-border: rgba(245, 158, 11, 0.7);
 
   --kt-accent-play: #7c3aed;
   --kt-accent-play-hover: #6d28d9;
   --kt-accent-play-bar: #7c3aed;
 
-  --kt-success-bg: rgba(16, 185, 129, 0.12);
+  --kt-success-bg: rgba(16, 185, 129, 0.1);
   --kt-success: #059669;
   --kt-success-btn: #10b981;
   --kt-success-btn-hover: #059669;
 
-  --kt-danger: rgba(220, 38, 38, 0.7);
+  --kt-danger: rgba(220, 38, 38, 0.65);
   --kt-danger-hover: #dc2626;
   --kt-danger-btn: #ef4444;
 
-  --kt-scrollbar-thumb: #a1a1aa;
-  --kt-scrollbar-thumb-hover: #71717a;
+  --kt-scrollbar-thumb: #b0b3b8;
+  --kt-scrollbar-thumb-hover: #8a8d94;
 
-  --kt-slider-track: #d4d4d8;
-  --kt-slider-fill: rgba(0, 0, 0, 0.4);
-  --kt-slider-thumb: #18181b;
+  --kt-slider-track: #d0d3d8;
+  --kt-slider-fill: rgba(0, 0, 0, 0.35);
+  --kt-slider-thumb: #1a1d23;
 
-  --kt-badge-bg: rgba(255, 255, 255, 0.7);
-  --kt-badge-text: #18181b;
-  --kt-import-btn-bg: rgba(0, 0, 0, 0.05);
-  --kt-import-btn-hover: rgba(0, 0, 0, 0.1);
-  --kt-cancel-btn-bg: #d4d4d8;
-  --kt-cancel-btn-hover: #a1a1aa;
-  --kt-cancel-btn-text: #27272a;
-  --kt-spinner-border: #a1a1aa;
-  --kt-spinner-top: #52525b;
+  --kt-badge-bg: rgba(255, 255, 255, 0.75);
+  --kt-badge-text: #1a1d23;
+  --kt-import-btn-bg: rgba(0, 0, 0, 0.04);
+  --kt-import-btn-hover: rgba(0, 0, 0, 0.08);
+  --kt-cancel-btn-bg: #d0d3d8;
+  --kt-cancel-btn-hover: #b0b3b8;
+  --kt-cancel-btn-text: #2a2d33;
+  --kt-spinner-border: #b0b3b8;
+  --kt-spinner-top: #5a5e66;
   --kt-dimmed-thumb: 0.6;
   --kt-crop-mask: rgba(255, 255, 255, 0.55);
   --kt-time-badge-bg: #ffffff;
-  --kt-time-badge-border: rgba(0, 0, 0, 0.15);
-  --kt-tick-major: #71717a;
-  --kt-tick-minor: #d4d4d8;
+  --kt-time-badge-border: rgba(0, 0, 0, 0.12);
+  --kt-tick-major: #7c8088;
+  --kt-tick-minor: #d0d3d8;
+}
+
+/* ── Base font ── */
+.kutlass-editor {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* ── Scrollbar ── */

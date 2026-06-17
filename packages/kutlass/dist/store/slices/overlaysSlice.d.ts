@@ -3,6 +3,7 @@ export interface OverlaysState {
     overlays: Overlay[];
     selectedOverlayId: string | null;
     stickerDuration: number;
+    freezeOnOverlay: boolean;
 }
 export interface OverlaysActions {
     addTextOverlay: (overlay: Omit<TextOverlay, "id" | "type" | "startTime" | "endTime">) => string;
@@ -16,6 +17,7 @@ export interface OverlaysActions {
     selectOverlay: (id: string | null) => void;
     clearOverlays: () => void;
     setStickerDuration: (duration: number) => void;
+    setFreezeOnOverlay: (value: boolean) => void;
 }
 export declare const createOverlaysSlice: (set: (fn: (state: OverlaysState & OverlaysActions) => Partial<OverlaysState & OverlaysActions>) => void, get: () => OverlaysState & OverlaysActions & {
     currentTime: number;

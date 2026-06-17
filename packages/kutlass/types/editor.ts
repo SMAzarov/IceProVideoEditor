@@ -124,3 +124,26 @@ export interface Transition {
   clipAId: string;  // first clip (the one that ends at the transition point)
   clipBId: string;  // second clip (the one that starts at the transition point)
 }
+
+/** Shape annotation — rectangle, circle, or text drawn on the video */
+export type ShapeType = "rectangle" | "circle" | "text";
+
+/** Visual style for shape annotations */
+export type ShapeStyle = "simple" | "note" | "sticky" | "outline" | "neon";
+
+export interface ShapeAnnotation {
+  id: string;
+  type: ShapeType;
+  style: ShapeStyle;
+  x: number;      // 0-1 normalized (center)
+  y: number;      // 0-1 normalized (center)
+  width: number;  // 0-1 normalized
+  height: number; // 0-1 normalized
+  text: string;
+  color: string;       // stroke/text color
+  fillColor: string;   // fill color (e.g. "transparent")
+  strokeWidth: number;
+  fontSize: number;    // font size in px (for text shapes)
+  startTime: number;
+  endTime: number;
+}

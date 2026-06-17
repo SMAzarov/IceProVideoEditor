@@ -81,6 +81,13 @@ export function useKeyboardShortcuts() {
             setPlaybackRate(0);
           }
           break;
+        case "1":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            const { freezeOnOverlay, setFreezeOnOverlay } = useEditorStore.getState();
+            setFreezeOnOverlay(!freezeOnOverlay);
+          }
+          break;
       }
     };
 

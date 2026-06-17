@@ -31,6 +31,8 @@ type Set = (fn: (s: DrawingState & DrawingActions) => Partial<DrawingState & Dra
 type Get = () => DrawingState & DrawingActions & {
     currentTime: number;
     duration: number;
+    freezeOnOverlay: boolean;
+    addFreeze: (startTime: number, endTime: number) => string;
 };
 export declare function createDrawingSlice(set: Set, get: Get): DrawingState & DrawingActions;
 export {};

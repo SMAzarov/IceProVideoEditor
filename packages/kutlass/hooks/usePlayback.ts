@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useEditorStore } from "@/store/editorStore";
-import { renderPreview, renderer } from "@/lib/webcodecs/PreviewEngine";
+import { renderPreview, renderer, drawShapesOnCtx } from "@/lib/webcodecs/PreviewEngine";
 import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
 import { DEFAULT_EFFECTS } from "@/types/editor";
 
@@ -38,8 +38,8 @@ export function usePlayback(
       if (!canvasRef.current || renderingRef.current) return;
       renderingRef.current = true;
       try {
-        const { clips, clipEffects, cropToolActive } = useEditorStore.getState();
-        await renderPreview(canvasRef.current, clips, time, clipEffects, cropToolActive);
+        const { clips, clipEffects, cropToolActive, shapes } = useEditorStore.getState();
+        await renderPreview(canvasRef.current, clips, time, clipEffects, cropToolActive, shapes);
         if (!firstFrameFiredRef.current) {
           firstFrameFiredRef.current = true;
           onFirstFrame?.();
@@ -85,6 +85,7 @@ export function usePlayback(
     let lastEffects = useEditorStore.getState().clipEffects;
     let lastTrimScrub = useEditorStore.getState().trimScrub;
     let lastCropToolActive = useEditorStore.getState().cropToolActive;
+    let lastShapes = useEditorStore.getState().shapes;
 
     return useEditorStore.subscribe((state) => {
       if (state.isPlaying) return;
@@ -105,11 +106,13 @@ export function usePlayback(
       const timeChanged = state.currentTime !== lastTime;
       const effectsChanged = state.clipEffects !== lastEffects;
       const cropChanged = state.cropToolActive !== lastCropToolActive;
+      const shapesChanged = state.shapes !== lastShapes;
 
-      if (timeChanged || effectsChanged || cropChanged) {
+      if (timeChanged || effectsChanged || cropChanged || shapesChanged) {
         lastTime = state.currentTime;
         lastEffects = state.clipEffects;
         lastCropToolActive = state.cropToolActive;
+        lastShapes = state.shapes;
         renderFrameRef.current(state.currentTime);
       }
     });
@@ -179,18 +182,27 @@ export function usePlayback(
 
         useEditorStore.getState().setCurrentTime(Math.min(timelineTime, duration));
 
-        if (canvasRef.current && !renderingRef.current) {
-          const frame = active.decoder.captureCurrentFrame();
-          if (frame) {
-            const { clipEffects, cropToolActive } = useEditorStore.getState();
-            const base = clipEffects[active.clip.id] ?? DEFAULT_EFFECTS;
-            const effects = cropToolActive
-              ? { ...base, cropX: 0, cropY: 0, cropW: 1, cropH: 1 }
-              : base;
-            renderer.renderFrame(frame, canvasRef.current, effects);
-            frame.close();
+          if (canvasRef.current && !renderingRef.current) {
+            const frame = active.decoder.captureCurrentFrame();
+            if (frame) {
+              const { clipEffects, cropToolActive, shapes } = useEditorStore.getState();
+              const base = clipEffects[active.clip.id] ?? DEFAULT_EFFECTS;
+              const effects = cropToolActive
+                ? { ...base, cropX: 0, cropY: 0, cropW: 1, cropH: 1 }
+                : base;
+              renderer.renderFrame(frame, canvasRef.current, effects);
+              frame.close();
+
+              // Draw shape annotations on top
+              const visibleShapes = shapes.filter(
+                (s) => s.startTime <= currentTime && currentTime < s.endTime
+              );
+              if (visibleShapes.length > 0) {
+                const ctx = canvasRef.current.getContext("2d");
+                if (ctx) drawShapesOnCtx(ctx, visibleShapes, canvasRef.current.width, canvasRef.current.height);
+              }
+            }
           }
-        }
       }
 
       rafRef.current = requestAnimationFrame(loop);

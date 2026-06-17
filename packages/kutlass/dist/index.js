@@ -55,10 +55,10 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // src/Kutlass.tsx
-var import_react15 = require("react");
+var import_react17 = require("react");
 
 // components/editor/Editor.tsx
-var import_react14 = require("react");
+var import_react16 = require("react");
 var import_framer_motion3 = require("framer-motion");
 
 // components/editor/TopBar.tsx
@@ -155,11 +155,14 @@ var createPlaybackSlice = (set) => ({
   isPlaying: false,
   fps: 30,
   playbackRate: 1,
+  muted: true,
   trimScrub: null,
   setPlaying: (playing) => set(() => ({ isPlaying: playing })),
   togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
   setFps: (fps) => set(() => ({ fps })),
   setPlaybackRate: (rate) => set(() => ({ playbackRate: rate })),
+  setMuted: (muted) => set(() => ({ muted })),
+  toggleMuted: () => set((state) => ({ muted: !state.muted })),
   setTrimScrub: (scrub) => set(() => ({ trimScrub: scrub }))
 });
 
@@ -239,6 +242,7 @@ var createOverlaysSlice = (set, get) => ({
   overlays: [],
   selectedOverlayId: null,
   stickerDuration: 3,
+  freezeOnOverlay: true,
   addTextOverlay: (overlay) => {
     var _a, _b;
     const id = (0, import_nanoid2.nanoid)();
@@ -249,6 +253,9 @@ var createOverlaysSlice = (set, get) => ({
       overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "text", startTime: currentTime, endTime })],
       selectedOverlayId: id
     }));
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
   addStickerOverlay: (overlay) => {
@@ -261,6 +268,9 @@ var createOverlaysSlice = (set, get) => ({
       overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "sticker", startTime: currentTime, endTime })],
       selectedOverlayId: id
     }));
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
   addVoiceOverlay: (overlay) => {
@@ -288,7 +298,8 @@ var createOverlaysSlice = (set, get) => ({
   })),
   selectOverlay: (id) => set(() => ({ selectedOverlayId: id })),
   clearOverlays: () => set(() => ({ overlays: [], selectedOverlayId: null })),
-  setStickerDuration: (duration) => set(() => ({ stickerDuration: duration }))
+  setStickerDuration: (duration) => set(() => ({ stickerDuration: duration })),
+  setFreezeOnOverlay: (value) => set(() => ({ freezeOnOverlay: value }))
 });
 
 // store/slices/drawingSlice.ts
@@ -310,6 +321,9 @@ function createDrawingSlice(set, get) {
           __spreadProps(__spreadValues({}, stroke), { startTime: currentTime, endTime })
         ]
       }));
+      if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+        get().addFreeze(currentTime, endTime);
+      }
     },
     undoStroke: () => set((s) => ({ strokes: s.strokes.slice(0, -1) })),
     clearStrokes: () => set(() => ({ strokes: [] })),
@@ -420,8 +434,89 @@ var createTransitionSlice = (set, get) => ({
   })
 });
 
+// store/slices/shapeSlice.ts
+var import_nanoid5 = require("nanoid");
+var createShapeSlice = (set, get) => ({
+  shapes: [],
+  selectedShapeId: null,
+  shapeTool: "rectangle",
+  shapeStyle: "simple",
+  shapeColor: "#ff0000",
+  shapeFillColor: "transparent",
+  shapeStrokeWidth: 3,
+  shapeText: "Text",
+  shapeFontSize: 32,
+  shapeDuration: 3,
+  annotateMode: "draw",
+  setAnnotateMode: (mode) => set(() => ({ annotateMode: mode })),
+  addShape: (shape) => {
+    var _a, _b;
+    const id = (0, import_nanoid5.nanoid)();
+    const currentTime = (_a = get().currentTime) != null ? _a : 0;
+    const duration = (_b = get().shapeDuration) != null ? _b : 3;
+    set((s) => ({
+      shapes: [
+        ...s.shapes,
+        __spreadProps(__spreadValues({}, shape), { id, startTime: currentTime, endTime: currentTime + duration })
+      ]
+    }));
+    return id;
+  },
+  updateShape: (id, updates) => set((s) => ({
+    shapes: s.shapes.map((sh) => sh.id === id ? __spreadValues(__spreadValues({}, sh), updates) : sh)
+  })),
+  removeShape: (id) => set((s) => ({
+    shapes: s.shapes.filter((sh) => sh.id !== id),
+    selectedShapeId: s.selectedShapeId === id ? null : s.selectedShapeId
+  })),
+  selectShape: (id) => set(() => ({ selectedShapeId: id })),
+  clearShapes: () => set(() => ({ shapes: [], selectedShapeId: null })),
+  setShapeTool: (tool) => set(() => ({ shapeTool: tool })),
+  setShapeStyle: (style) => set(() => ({ shapeStyle: style })),
+  setShapeColor: (color) => set(() => ({ shapeColor: color })),
+  setShapeFillColor: (color) => set(() => ({ shapeFillColor: color })),
+  setShapeStrokeWidth: (width) => set(() => ({ shapeStrokeWidth: width })),
+  setShapeText: (text) => set(() => ({ shapeText: text })),
+  setShapeFontSize: (size) => set(() => ({ shapeFontSize: size })),
+  setShapeDuration: (duration) => set(() => ({ shapeDuration: duration }))
+});
+
+// store/slices/themeSlice.ts
+var LS_KEY = "kt-theme";
+function getInitialTheme() {
+  if (typeof window === "undefined") return "dark";
+  const stored = localStorage.getItem(LS_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return "dark";
+}
+function applyTheme(theme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-kt-theme", theme);
+  document.documentElement.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+  document.body.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+}
+var createThemeSlice = (set) => {
+  const initial = getInitialTheme();
+  return {
+    theme: initial,
+    setTheme: (theme) => {
+      set(() => ({ theme }));
+      localStorage.setItem(LS_KEY, theme);
+      applyTheme(theme);
+    },
+    toggleTheme: () => {
+      set((state) => {
+        const next = state.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(LS_KEY, next);
+        applyTheme(next);
+        return { theme: next };
+      });
+    }
+  };
+};
+
 // store/editorStore.ts
-var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
+var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
   set,
   get
 )), createExportSlice(set)), createOverlaysSlice(
@@ -436,7 +531,10 @@ var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(_
 )), createFreezeSlice(set)), createTransitionSlice(
   set,
   get
-)));
+)), createShapeSlice(
+  set,
+  get
+)), createThemeSlice(set)));
 
 // hooks/useExport.ts
 var import_react = require("react");
@@ -931,6 +1029,66 @@ async function drawOverlays(ctx, overlays, w, h) {
     }
   }
 }
+function drawShapes(ctx, shapes, w, h) {
+  for (const shape of shapes) {
+    ctx.save();
+    const cx = shape.x * w;
+    const cy = shape.y * h;
+    const sw = shape.width * w;
+    const sh = shape.height * h;
+    const halfW = sw / 2;
+    const halfH = sh / 2;
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = shape.strokeWidth;
+    ctx.fillStyle = shape.fillColor;
+    if (shape.type === "rectangle") {
+      ctx.beginPath();
+      ctx.rect(cx - halfW, cy - halfH, sw, sh);
+      if (shape.fillColor !== "transparent") ctx.fill();
+      ctx.stroke();
+    } else if (shape.type === "circle") {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, halfW, halfH, 0, 0, Math.PI * 2);
+      if (shape.fillColor !== "transparent") ctx.fill();
+      ctx.stroke();
+    } else if (shape.type === "text") {
+      const size = Math.round(shape.fontSize * (h / 720));
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.fillStyle = shape.color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      const maxW = sw > 10 ? sw : w * 0.3;
+      const maxH = sh > 10 ? sh : h * 0.15;
+      const tx = cx - maxW / 2;
+      const ty = cy - maxH / 2;
+      const words = shape.text.split(" ");
+      const lines = [];
+      let currentLine = "";
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxW && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      const lineHeight = size * 1.3;
+      const maxLines = Math.floor(maxH / lineHeight);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(tx, ty, maxW, maxH);
+      ctx.clip();
+      for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+        ctx.fillText(lines[i], tx, ty + i * lineHeight);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
 function getOutputSize(clip, effects, resolution) {
   const cropW = Math.round(clip.width * effects.cropW);
   const cropH = Math.round(clip.height * effects.cropH);
@@ -1010,6 +1168,10 @@ async function runExport(job) {
       (s) => s.startTime <= frameTime && frameTime < s.endTime
     );
     if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
+    const visibleShapes = job.shapes.filter(
+      (s) => s.startTime <= frameTime && frameTime < s.endTime
+    );
+    if (visibleShapes.length > 0) drawShapes(ctx, visibleShapes, outW, outH);
     const visibleOverlays = overlays.filter(
       (o) => o.startTime <= frameTime && frameTime < o.endTime
     );
@@ -1242,6 +1404,7 @@ function useExport() {
   const overlays = useEditorStore((s) => s.overlays);
   const freezes = useEditorStore((s) => s.freezes);
   const transitions = useEditorStore((s) => s.transitions);
+  const shapes = useEditorStore((s) => s.shapes);
   const setExportStatus = useEditorStore((s) => s.setExportStatus);
   const setExportProgress = useEditorStore((s) => s.setExportProgress);
   const setOutputUrl = useEditorStore((s) => s.setOutputUrl);
@@ -1268,6 +1431,7 @@ function useExport() {
         overlays,
         freezes,
         transitions,
+        shapes,
         signal: controller.signal,
         onProgress: (p) => {
           if (controller.signal.aborted) return;
@@ -1387,7 +1551,15 @@ function useVideoImport() {
 
 // components/editor/TopBar.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
+var MENUS = [
+  { id: "file", label: "File" },
+  { id: "edit", label: "Edit" },
+  { id: "view", label: "View" },
+  { id: "help", label: "Help" }
+];
 function TopBar() {
+  const [openMenu, setOpenMenu] = (0, import_react3.useState)(null);
+  const menuRef = (0, import_react3.useRef)(null);
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
   const undo = useEditorStore((s) => s.undo);
@@ -1399,191 +1571,378 @@ function TopBar() {
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const playbackRate = useEditorStore((s) => s.playbackRate);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const theme = useEditorStore((s) => s.theme);
+  const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const { startExport } = useExport();
   const { replaceImport } = useVideoImport();
   const fileInputRef = (0, import_react3.useRef)(null);
   const isExporting = exportStatus === "preparing" || exportStatus === "encoding";
   const hasClips = clips.length > 0;
   const zoomPercent = Math.round(zoom / 80 * 100);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center h-11 px-2 md:px-3 shrink-0 border-b", style: { borderColor: "var(--kt-border)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-0.5 md:gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: undo,
-          disabled: !canUndo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Undo (\u2318Z)",
-          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" }) })
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: redo,
-          disabled: !canRedo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Redo (\u2318\u21E7Z)",
-          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" }) })
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mx-auto", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setZoom(zoom / 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "-"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
-        zoomPercent,
-        "%"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setZoom(zoom * 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Slower ([)",
-          children: "\u2212"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "span",
-        {
-          className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
-          style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
-          children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Faster (])",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1.5 md:gap-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          ref: fileInputRef,
-          type: "file",
-          accept: "video/*",
-          className: "hidden",
-          onChange: (e) => {
-            var _a;
-            const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
-            if (files.length > 0) replaceImport(files);
-            e.target.value = "";
+  (0, import_react3.useEffect)(() => {
+    if (!openMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenu]);
+  const toggleMenu = (0, import_react3.useCallback)((id) => {
+    setOpenMenu((prev) => prev === id ? null : id);
+  }, []);
+  const handleAction = (0, import_react3.useCallback)(
+    (action) => {
+      var _a;
+      setOpenMenu(null);
+      switch (action) {
+        case "import":
+          (_a = fileInputRef.current) == null ? void 0 : _a.click();
+          break;
+        case "export":
+          if (!isExporting && hasClips) {
+            setPlaying(false);
+            startExport();
           }
-        }
-      ),
-      hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
+          break;
+        case "undo":
+          undo();
+          break;
+        case "redo":
+          redo();
+          break;
+        case "toggle-theme":
+          toggleTheme();
+          break;
+        case "zoom-in":
+          setZoom(zoom * 1.25);
+          break;
+        case "zoom-out":
+          setZoom(zoom / 1.25);
+          break;
+        case "zoom-reset":
+          setZoom(80);
+          break;
+      }
+    },
+    [undo, redo, toggleTheme, setZoom, zoom, isExporting, hasClips, setPlaying]
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "div",
+    {
+      ref: menuRef,
+      className: "flex items-center h-11 px-1 md:px-2 shrink-0 border-b select-none",
+      style: { borderColor: "var(--kt-border)" },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
           {
-            onClick: () => {
+            ref: fileInputRef,
+            type: "file",
+            accept: "video/*",
+            className: "hidden",
+            onChange: (e) => {
               var _a;
-              return (_a = fileInputRef.current) == null ? void 0 : _a.click();
-            },
-            className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
-            title: "Import new video",
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "hidden md:inline", children: "Import Video" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "md:hidden", children: "Import" })
-            ]
+              const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
+              if (files.length > 0) replaceImport(files);
+              e.target.value = "";
+            }
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            disabled: isExporting,
-            onClick: () => {
-              setPlaying(false);
-              startExport();
-            },
-            className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-            children: "Done"
-          }
-        )
-      ] })
-    ] })
-  ] });
+        MENUS.map((menu) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => toggleMenu(menu.id),
+              className: "kt-btn-ghost px-3 h-8 rounded-lg text-sm font-medium transition-colors",
+              style: {
+                color: openMenu === menu.id ? "var(--kt-text-primary)" : "var(--kt-text-tertiary)",
+                background: openMenu === menu.id ? "var(--kt-bg-subtle-hover)" : "transparent"
+              },
+              children: menu.label
+            }
+          ),
+          openMenu === menu.id && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "div",
+            {
+              className: "absolute top-full left-0 mt-0.5 w-48 rounded-lg shadow-xl border z-50 py-1",
+              style: {
+                background: "var(--kt-bg-panel)",
+                borderColor: "var(--kt-border-strong)"
+              },
+              children: [
+                menu.id === "file" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Import Video", shortcut: "\u2318I", onClick: () => handleAction("import") }),
+                  hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    MenuItem,
+                    {
+                      label: "Export",
+                      shortcut: "\u2318E",
+                      onClick: () => handleAction("export"),
+                      disabled: isExporting
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Close", shortcut: "\u2318W", onClick: () => handleAction("close") })
+                ] }),
+                menu.id === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Undo", shortcut: "\u2318Z", onClick: () => handleAction("undo"), disabled: !canUndo }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Redo", shortcut: "\u2318\u21E7Z", onClick: () => handleAction("redo"), disabled: !canRedo })
+                ] }),
+                menu.id === "view" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Zoom In", shortcut: "\u2318+", onClick: () => handleAction("zoom-in") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Zoom Out", shortcut: "\u2318-", onClick: () => handleAction("zoom-out") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Reset Zoom", shortcut: "\u23180", onClick: () => handleAction("zoom-reset") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    MenuItem,
+                    {
+                      label: theme === "dark" ? "Light Theme" : "Dark Theme",
+                      shortcut: "\u2318T",
+                      onClick: () => handleAction("toggle-theme"),
+                      icon: theme === "dark" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "12", cy: "12", r: "5" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" })
+                      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" }) })
+                    }
+                  )
+                ] }),
+                menu.id === "help" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Keyboard Shortcuts", shortcut: "?", onClick: () => handleAction("shortcuts") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "About IceProVideoEditor", onClick: () => handleAction("about") })
+                ] })
+              ]
+            }
+          )
+        ] }, menu.id)),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex-1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mr-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium flex items-center gap-1 mr-1", style: { color: "var(--kt-text-muted)" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "11", cy: "11", r: "7" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M16.5 16.5L21 21" })
+            ] }),
+            "Zoom"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setZoom(zoom / 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "-"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
+            zoomPercent,
+            "%"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setZoom(zoom * 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium flex items-center gap-1 mr-1", style: { color: "var(--kt-text-muted)" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M12 6v6l4 2" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "12", cy: "12", r: "9" })
+            ] }),
+            "Speed"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Slower ([)",
+              children: "\u2212"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
+              style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
+              children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Faster (])",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex items-center gap-1.5 md:gap-2", children: hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "button",
+            {
+              onClick: () => {
+                var _a;
+                return (_a = fileInputRef.current) == null ? void 0 : _a.click();
+              },
+              className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
+              title: "Import new video",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "hidden md:inline", children: "Import Video" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "md:hidden", children: "Import" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              disabled: isExporting,
+              onClick: () => {
+                setPlaying(false);
+                startExport();
+              },
+              className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+              children: "Done"
+            }
+          )
+        ] }) })
+      ]
+    }
+  );
+}
+function MenuItem({
+  label,
+  shortcut,
+  icon,
+  disabled,
+  onClick
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "button",
+    {
+      onClick,
+      disabled,
+      className: "flex items-center w-full px-3 py-2 text-sm transition-colors",
+      style: {
+        color: disabled ? "var(--kt-text-faint)" : "var(--kt-text-secondary)",
+        cursor: disabled ? "not-allowed" : "pointer"
+      },
+      onMouseEnter: (e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = "var(--kt-bg-subtle-hover)";
+          e.currentTarget.style.color = "var(--kt-text-primary)";
+        }
+      },
+      onMouseLeave: (e) => {
+        e.currentTarget.style.background = "transparent";
+        if (!disabled) e.currentTarget.style.color = "var(--kt-text-secondary)";
+      },
+      children: [
+        icon && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "mr-2", children: icon }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "flex-1 text-left", children: label }),
+        shortcut && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ml-4 text-[10px] tabular-nums", style: { color: "var(--kt-text-muted)" }, children: shortcut })
+      ]
+    }
+  );
 }
 
 // components/editor/Sidebar.tsx
 var import_framer_motion = require("framer-motion");
 var import_jsx_runtime2 = require("react/jsx-runtime");
+var C = {
+  trim: "#3b82f6",
+  // blue
+  crop: "#22c55e",
+  // green
+  finetune: "#a855f7",
+  // purple
+  filter: "#f43f5e",
+  // rose
+  annotate: "#f97316",
+  // orange
+  sticker: "#ec4899",
+  // pink
+  resize: "#eab308",
+  // yellow
+  voice: "#06b6d4"
+  // cyan
+};
 var TOOLS = [
   {
     id: "trim",
     label: "Trim",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "3", y: "5", width: "18", height: "14", rx: "1" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M3 9h18M3 15h18M9 5v14M15 5v14" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "2", y: "4", width: "20", height: "16", rx: "2", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M8 4v16M16 4v16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M2 9h20M2 15h20", stroke: c, opacity: "0.35" })
     ] })
   },
   {
     id: "crop",
     label: "Crop",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
+    ] })
   },
   {
     id: "finetune",
-    label: "Finetune",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "6", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "15", cy: "12", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "18", r: "2", fill: "currentColor", stroke: "none" })
+    label: "Adjust",
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "8", cy: "6", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "16", cy: "12", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "8", cy: "18", r: "2", fill: c, stroke: "none", opacity: "0.7" })
     ] })
   },
   {
     id: "filter",
     label: "Filter",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
     ] })
   },
   {
     id: "annotate",
     label: "Annotate",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "16", cy: "8", r: "1.5", fill: c, stroke: "none", opacity: "0.55" })
+    ] })
   },
   {
     id: "sticker",
     label: "Sticker",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M9 9h.01M15 9h.01M9 14s1 2 3 2 3-2 3-2" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "3", y: "3", width: "18", height: "18", rx: "4", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "15", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 15s1.5 2 4 2 4-2 4-2", stroke: c })
     ] })
   },
   {
     id: "resize",
     label: "Resize",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 12h8M12 8v8", stroke: c, opacity: "0.45" })
+    ] })
   },
   {
     id: "voice",
     label: "Voice",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M5 11a7 7 0 0014 0", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M12 19v3M9 22h6", stroke: c })
+    ] })
   }
 ];
 function Sidebar({ activeTool, onToolChange, horizontal }) {
@@ -1595,19 +1954,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
         {
           onClick: () => onToolChange(tool.id),
           className: "relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 kt-tool-btn",
-          style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+          style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
           children: [
             isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               import_framer_motion.motion.div,
               {
                 layoutId: "sidebar-active-h",
                 className: "absolute inset-0 rounded-lg",
-                style: { background: "var(--kt-bg-subtle-hover)" },
+                style: { background: "var(--kt-accent-subtle-bg)" },
                 transition: { type: "spring", stiffness: 400, damping: 35 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[9px] font-medium leading-none", children: tool.label })
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
           ]
         },
         tool.id
@@ -1621,19 +1980,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
       {
         onClick: () => onToolChange(tool.id),
         className: "relative flex flex-col items-center gap-1 py-2.5 mx-1.5 rounded-xl transition-colors kt-tool-btn",
-        style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+        style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
         children: [
           isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             import_framer_motion.motion.div,
             {
               layoutId: "sidebar-active",
               className: "absolute inset-0 rounded-xl",
-              style: { background: "var(--kt-bg-subtle-hover)" },
+              style: { background: "var(--kt-accent-subtle-bg)" },
               transition: { type: "spring", stiffness: 400, damping: 35 }
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[10px] font-medium leading-none", children: tool.label })
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
         ]
       },
       tool.id
@@ -1642,7 +2001,7 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
 }
 
 // components/editor/preview/PreviewPanel.tsx
-var import_react9 = require("react");
+var import_react10 = require("react");
 var import_framer_motion2 = require("framer-motion");
 
 // components/editor/preview/PreviewCanvas.tsx
@@ -2122,7 +2481,7 @@ function DrawingCanvas({ isActive }) {
   const addStroke = useEditorStore((s) => s.addStroke);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  const addFreeze = useEditorStore((s) => s.addFreeze);
+  const annotateMode = useEditorStore((s) => s.annotateMode);
   (0, import_react7.useEffect)(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2150,9 +2509,10 @@ function DrawingCanvas({ isActive }) {
       y: (e.clientY - rect.top) / rect.height
     };
   }, []);
+  const isDrawMode = isActive && annotateMode === "draw";
   const onPointerDown = (0, import_react7.useCallback)(
     (e) => {
-      if (!isActive) return;
+      if (!isActive || annotateMode !== "draw") return;
       setPlaying(false);
       setPlaybackRate(0);
       freezeStartRef.current = useEditorStore.getState().currentTime;
@@ -2162,11 +2522,11 @@ function DrawingCanvas({ isActive }) {
       startPointRef.current = pt;
       activeStrokeRef.current = [pt];
     },
-    [isActive, getRelative, setPlaying, setPlaybackRate]
+    [isActive, annotateMode, getRelative, setPlaying, setPlaybackRate]
   );
   const onPointerMove = (0, import_react7.useCallback)(
     (e) => {
-      if (!isDrawingRef.current || !isActive) return;
+      if (!isDrawingRef.current || !isActive || annotateMode !== "draw") return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -2233,10 +2593,6 @@ function DrawingCanvas({ isActive }) {
     () => {
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
-      const freezeEnd = useEditorStore.getState().currentTime;
-      if (freezeEnd > freezeStartRef.current) {
-        addFreeze(freezeStartRef.current, freezeEnd);
-      }
       const pts = activeStrokeRef.current;
       if (drawingTool === "pen" || drawingTool === "eraser") {
         if (pts.length >= 2) {
@@ -2285,7 +2641,7 @@ function DrawingCanvas({ isActive }) {
       activeStrokeRef.current = [];
       startPointRef.current = null;
     },
-    [addStroke, drawingTool, drawingColor, drawingWidth, addFreeze]
+    [addStroke, drawingTool, drawingColor, drawingWidth]
   );
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
     "canvas",
@@ -2296,8 +2652,8 @@ function DrawingCanvas({ isActive }) {
       className: "absolute inset-0 w-full h-full",
       style: {
         zIndex: 18,
-        cursor: isActive ? drawingTool === "eraser" ? "cell" : "crosshair" : "none",
-        pointerEvents: isActive ? "auto" : "none"
+        cursor: isActive && annotateMode === "draw" ? drawingTool === "eraser" ? "cell" : "crosshair" : "none",
+        pointerEvents: isActive && annotateMode === "draw" ? "auto" : "none"
       },
       onPointerDown,
       onPointerMove,
@@ -2307,12 +2663,205 @@ function DrawingCanvas({ isActive }) {
   );
 }
 
-// hooks/usePlayback.ts
+// components/editor/preview/ShapeOverlay.tsx
 var import_react8 = require("react");
 
 // lib/webcodecs/PreviewEngine.ts
 var renderer = new FrameRenderer();
-async function renderPreview(canvas, clips, currentTime, effectsMap, skipCrop = false) {
+function drawShapesOnCtx(ctx, shapes, w, h) {
+  for (const shape of shapes) {
+    ctx.save();
+    const cx = shape.x * w;
+    const cy = shape.y * h;
+    const sw = shape.width * w;
+    const sh = shape.height * h;
+    const halfW = sw / 2;
+    const halfH = sh / 2;
+    const style = shape.style || "simple";
+    const drawPath = (drawFn) => {
+      if (style === "note") {
+        const r = Math.min(12, sw * 0.08, sh * 0.08);
+        const fold = Math.min(24, sw * 0.15, sh * 0.15);
+        const x = cx - halfW;
+        const y = cy - halfH;
+        const notePath = () => {
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + sw - fold - r, y);
+          ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
+          ctx.lineTo(x + sw, y + fold + r);
+          ctx.lineTo(x + sw, y + sh - r);
+          ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
+          ctx.lineTo(x + r, y + sh);
+          ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.closePath();
+        };
+        if (shape.fillColor !== "transparent") {
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.25)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = shape.fillColor;
+          notePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        notePath();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
+        ctx.save();
+        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + sw - fold, y);
+        ctx.lineTo(x + sw, y + fold);
+        ctx.stroke();
+        ctx.restore();
+      } else if (style === "sticky") {
+        const x = cx - halfW;
+        const y = cy - halfH;
+        const angle = 0.03;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.translate(-cx, -cy);
+        if (shape.fillColor !== "transparent") {
+          ctx.shadowColor = "rgba(0,0,0,0.2)";
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 4;
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
+        ctx.restore();
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.translate(-cx, -cy);
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
+        ctx.restore();
+      } else if (style === "outline") {
+        const x = cx - halfW;
+        const y = cy - halfH;
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.globalAlpha = 0.4;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.globalAlpha = 1;
+        const inset = 6;
+        ctx.beginPath();
+        ctx.rect(x + inset, y + inset, sw - inset * 2, sh - inset * 2);
+        ctx.stroke();
+        ctx.restore();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.rect(x, y, sw, sh);
+          ctx.fill();
+        }
+      } else if (style === "neon") {
+        ctx.save();
+        ctx.shadowColor = shape.color;
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth + 2;
+        ctx.globalAlpha = 0.6;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.shadowColor = shape.color;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          drawFn();
+          ctx.fill();
+        }
+      } else {
+        drawFn();
+        if (shape.fillColor !== "transparent") ctx.fill();
+        ctx.stroke();
+      }
+    };
+    if (shape.type === "rectangle") {
+      drawPath(() => {
+        ctx.beginPath();
+        ctx.roundRect(cx - halfW, cy - halfH, sw, sh, 6);
+      });
+    } else if (shape.type === "circle") {
+      drawPath(() => {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, halfW, halfH, 0, 0, Math.PI * 2);
+      });
+    } else if (shape.type === "text") {
+      const size = Math.round(shape.fontSize * (h / 720));
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.fillStyle = shape.color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      const maxW = sw > 10 ? sw : w * 0.3;
+      const maxH = sh > 10 ? sh : h * 0.15;
+      const tx = cx - maxW / 2;
+      const ty = cy - maxH / 2;
+      const words = shape.text.split(" ");
+      const lines = [];
+      let currentLine = "";
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxW && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+      const lineHeight = size * 1.3;
+      const maxLines = Math.floor(maxH / lineHeight);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(tx, ty, maxW, maxH);
+      ctx.clip();
+      for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+        ctx.fillText(lines[i], tx, ty + i * lineHeight);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+async function renderPreview(canvas, clips, currentTime, effectsMap, skipCrop = false, shapes = []) {
   var _a;
   const activeClip = clips.find(
     (c) => c.trackId === "track-video" && c.startTime <= currentTime && c.startTime + c.duration > currentTime
@@ -2329,9 +2878,342 @@ async function renderPreview(canvas, clips, currentTime, effectsMap, skipCrop = 
   const effects = skipCrop ? __spreadProps(__spreadValues({}, base), { cropX: 0, cropY: 0, cropW: 1, cropH: 1 }) : base;
   renderer.renderFrame(frame, canvas, effects);
   frame.close();
+  const visibleShapes = shapes.filter(
+    (s) => s.startTime <= currentTime && currentTime < s.endTime
+  );
+  if (visibleShapes.length > 0) {
+    const ctx = canvas.getContext("2d");
+    if (ctx) drawShapesOnCtx(ctx, visibleShapes, canvas.width, canvas.height);
+  }
+}
+
+// components/editor/preview/ShapeOverlay.tsx
+var import_jsx_runtime7 = require("react/jsx-runtime");
+var HANDLE_SIZE = 8;
+var HANDLE_HALF = HANDLE_SIZE / 2;
+function hitTest(px, py, shape) {
+  const w = shape.width > 0 ? shape.width : 0.2;
+  const h = shape.height > 0 ? shape.height : 0.1;
+  const hw = w / 2;
+  const hh = h / 2;
+  const left = shape.x - hw;
+  const right = shape.x + hw;
+  const top = shape.y - hh;
+  const bottom = shape.y + hh;
+  if (shape.type === "rectangle" || shape.type === "text") {
+    return px >= left && px <= right && py >= top && py <= bottom;
+  }
+  if (shape.type === "circle") {
+    const dx = (px - shape.x) / hw;
+    const dy = (py - shape.y) / hh;
+    return dx * dx + dy * dy <= 1;
+  }
+  return false;
+}
+function getShapeBounds(shape) {
+  const w = shape.width > 0 ? shape.width : 0.2;
+  const h = shape.height > 0 ? shape.height : 0.1;
+  return {
+    left: shape.x - w / 2,
+    right: shape.x + w / 2,
+    top: shape.y - h / 2,
+    bottom: shape.y + h / 2,
+    w,
+    h
+  };
+}
+function hitCorner(px, py, shape, canvasW, canvasH) {
+  const b = getShapeBounds(shape);
+  const corners = [
+    { key: "tl", nx: b.left, ny: b.top },
+    { key: "tr", nx: b.right, ny: b.top },
+    { key: "bl", nx: b.left, ny: b.bottom },
+    { key: "br", nx: b.right, ny: b.bottom }
+  ];
+  const threshold = HANDLE_SIZE / Math.min(canvasW, canvasH);
+  for (const c of corners) {
+    if (Math.abs(px - c.nx) < threshold && Math.abs(py - c.ny) < threshold) {
+      return c.key;
+    }
+  }
+  return null;
+}
+function ShapeOverlay({ isActive }) {
+  const canvasRef = (0, import_react8.useRef)(null);
+  const [hoveredCorner, setHoveredCorner] = (0, import_react8.useState)(null);
+  const draggingRef = (0, import_react8.useRef)(null);
+  const resizeRef = (0, import_react8.useRef)(null);
+  const annotateMode = useEditorStore((s) => s.annotateMode);
+  const selectedShapeId = useEditorStore((s) => s.selectedShapeId);
+  const selectShape = useEditorStore((s) => s.selectShape);
+  const updateShape = useEditorStore((s) => s.updateShape);
+  const isShapeMode = isActive && annotateMode === "shape";
+  (0, import_react8.useEffect)(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const render = () => {
+      const { shapes, currentTime } = useEditorStore.getState();
+      const visible = shapes.filter(
+        (s) => s.startTime <= currentTime && currentTime < s.endTime
+      );
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
+      const selected = visible.find((s) => s.id === selectedShapeId);
+      if (selected) {
+        const cx = selected.x * canvas.width;
+        const cy = selected.y * canvas.height;
+        const sw = selected.width * canvas.width;
+        const sh = selected.height * canvas.height;
+        const halfW = sw / 2;
+        const halfH = sh / 2;
+        ctx.save();
+        ctx.strokeStyle = "#00aaff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        ctx.fillStyle = "#00aaff";
+        const corners = [
+          [cx - halfW - 4, cy - halfH - 4],
+          [cx + halfW + 4, cy - halfH - 4],
+          [cx - halfW - 4, cy + halfH + 4],
+          [cx + halfW + 4, cy + halfH + 4]
+        ];
+        corners.forEach(([hx, hy]) => {
+          ctx.fillRect(hx - HANDLE_HALF, hy - HANDLE_HALF, HANDLE_SIZE, HANDLE_SIZE);
+        });
+        ctx.restore();
+      }
+    };
+    render();
+    const unsub = useEditorStore.subscribe(() => {
+      if (!draggingRef.current && !resizeRef.current) render();
+    });
+    return unsub;
+  }, [selectedShapeId]);
+  const getRelative = (0, import_react8.useCallback)((e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height
+    };
+  }, []);
+  const getCanvasSize = (0, import_react8.useCallback)(() => {
+    const canvas = canvasRef.current;
+    return { cw: canvas.width, ch: canvas.height };
+  }, []);
+  const onPointerDown = (0, import_react8.useCallback)(
+    (e) => {
+      if (!isShapeMode) return;
+      const pt = getRelative(e);
+      const { cw, ch } = getCanvasSize();
+      const { shapes, currentTime } = useEditorStore.getState();
+      const visible = shapes.filter(
+        (s) => s.startTime <= currentTime && currentTime < s.endTime
+      );
+      const selected = visible.find((s) => s.id === selectedShapeId);
+      if (selected) {
+        const corner = hitCorner(pt.x, pt.y, selected, cw, ch);
+        if (corner) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          resizeRef.current = {
+            shapeId: selected.id,
+            corner,
+            startPx: pt.x,
+            startPy: pt.y,
+            origBounds: getShapeBounds(selected)
+          };
+          return;
+        }
+      }
+      let hit = null;
+      for (let i = visible.length - 1; i >= 0; i--) {
+        if (hitTest(pt.x, pt.y, visible[i])) {
+          hit = visible[i];
+          break;
+        }
+      }
+      if (hit) {
+        selectShape(hit.id);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        draggingRef.current = {
+          shapeId: hit.id,
+          startX: pt.x,
+          startY: pt.y,
+          origX: hit.x,
+          origY: hit.y
+        };
+      } else {
+        selectShape(null);
+      }
+    },
+    [isShapeMode, getRelative, getCanvasSize, selectedShapeId, selectShape]
+  );
+  const onPointerMove = (0, import_react8.useCallback)(
+    (e) => {
+      const pt = getRelative(e);
+      const { cw, ch } = getCanvasSize();
+      if (resizeRef.current) {
+        const r = resizeRef.current;
+        const dx = pt.x - r.startPx;
+        const dy = pt.y - r.startPy;
+        let newLeft = r.origBounds.left;
+        let newRight = r.origBounds.right;
+        let newTop = r.origBounds.top;
+        let newBottom = r.origBounds.bottom;
+        switch (r.corner) {
+          case "tl":
+            newLeft = r.origBounds.left + dx;
+            newTop = r.origBounds.top + dy;
+            break;
+          case "tr":
+            newRight = r.origBounds.right + dx;
+            newTop = r.origBounds.top + dy;
+            break;
+          case "bl":
+            newLeft = r.origBounds.left + dx;
+            newBottom = r.origBounds.bottom + dy;
+            break;
+          case "br":
+            newRight = r.origBounds.right + dx;
+            newBottom = r.origBounds.bottom + dy;
+            break;
+        }
+        const MIN_SIZE = 0.02;
+        let left = Math.max(0, Math.min(newLeft, newRight - MIN_SIZE));
+        let right = Math.min(1, Math.max(newRight, left + MIN_SIZE));
+        let top = Math.max(0, Math.min(newTop, newBottom - MIN_SIZE));
+        let bottom = Math.min(1, Math.max(newBottom, top + MIN_SIZE));
+        const newW = right - left;
+        const newH = bottom - top;
+        const newX = left + newW / 2;
+        const newY = top + newH / 2;
+        updateShape(r.shapeId, { x: newX, y: newY, width: newW, height: newH });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { shapes, currentTime } = useEditorStore.getState();
+        const visible = shapes.filter(
+          (s) => s.startTime <= currentTime && currentTime < s.endTime
+        );
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
+        const sel = visible.find((s) => s.id === r.shapeId);
+        if (sel) {
+          const cx = sel.x * canvas.width;
+          const cy = sel.y * canvas.height;
+          const sw = sel.width * canvas.width;
+          const sh = sel.height * canvas.height;
+          const halfW = sw / 2;
+          const halfH = sh / 2;
+          ctx.save();
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          ctx.fillStyle = "#00aaff";
+          const corners = [
+            [cx - halfW - 4, cy - halfH - 4],
+            [cx + halfW + 4, cy - halfH - 4],
+            [cx - halfW - 4, cy + halfH + 4],
+            [cx + halfW + 4, cy + halfH + 4]
+          ];
+          corners.forEach(([hx, hy]) => {
+            ctx.fillRect(hx - HANDLE_HALF, hy - HANDLE_HALF, HANDLE_SIZE, HANDLE_SIZE);
+          });
+          ctx.restore();
+        }
+        return;
+      }
+      if (draggingRef.current) {
+        const dx = pt.x - draggingRef.current.startX;
+        const dy = pt.y - draggingRef.current.startY;
+        const newX = Math.max(0, Math.min(1, draggingRef.current.origX + dx));
+        const newY = Math.max(0, Math.min(1, draggingRef.current.origY + dy));
+        updateShape(draggingRef.current.shapeId, { x: newX, y: newY });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { shapes, currentTime } = useEditorStore.getState();
+        const visible = shapes.filter(
+          (s) => s.startTime <= currentTime && currentTime < s.endTime
+        );
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
+        const sel = visible.find((s) => s.id === draggingRef.current.shapeId);
+        if (sel) {
+          const cx = sel.x * canvas.width;
+          const cy = sel.y * canvas.height;
+          const sw = sel.width * canvas.width;
+          const sh = sel.height * canvas.height;
+          const halfW = sw / 2;
+          const halfH = sh / 2;
+          ctx.save();
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          ctx.restore();
+        }
+        return;
+      }
+      if (isShapeMode && selectedShapeId) {
+        const { shapes, currentTime } = useEditorStore.getState();
+        const sel = shapes.find(
+          (s) => s.id === selectedShapeId && s.startTime <= currentTime && currentTime < s.endTime
+        );
+        if (sel) {
+          const corner = hitCorner(pt.x, pt.y, sel, cw, ch);
+          setHoveredCorner(corner);
+        } else {
+          setHoveredCorner(null);
+        }
+      } else {
+        setHoveredCorner(null);
+      }
+    },
+    [getRelative, getCanvasSize, isShapeMode, selectedShapeId, updateShape]
+  );
+  const onPointerUp = (0, import_react8.useCallback)(() => {
+    if (draggingRef.current || resizeRef.current) {
+      useEditorStore.getState().setCurrentTime(useEditorStore.getState().currentTime);
+    }
+    draggingRef.current = null;
+    resizeRef.current = null;
+  }, []);
+  let cursor = "default";
+  if (isShapeMode) {
+    if (hoveredCorner === "tl" || hoveredCorner === "br") cursor = "nwse-resize";
+    else if (hoveredCorner === "tr" || hoveredCorner === "bl") cursor = "nesw-resize";
+    else if (selectedShapeId) cursor = "move";
+    else cursor = "pointer";
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    "canvas",
+    {
+      ref: canvasRef,
+      width: 1280,
+      height: 720,
+      className: "absolute inset-0 w-full h-full",
+      style: {
+        zIndex: 17,
+        cursor,
+        pointerEvents: isShapeMode ? "auto" : "none"
+      },
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerLeave: onPointerUp
+    }
+  );
 }
 
 // hooks/usePlayback.ts
+var import_react9 = require("react");
 function getActiveClipNow(time) {
   const { clips } = useEditorStore.getState();
   const clip = clips.find(
@@ -2342,19 +3224,19 @@ function getActiveClipNow(time) {
 function usePlayback(canvasRef, onFirstFrame) {
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const clipsLength = useEditorStore((s) => s.clips.filter((c) => c.trackId === "track-video").length);
-  const rafRef = (0, import_react8.useRef)(null);
-  const renderingRef = (0, import_react8.useRef)(false);
-  const firstFrameFiredRef = (0, import_react8.useRef)(false);
-  (0, import_react8.useEffect)(() => {
+  const rafRef = (0, import_react9.useRef)(null);
+  const renderingRef = (0, import_react9.useRef)(false);
+  const firstFrameFiredRef = (0, import_react9.useRef)(false);
+  (0, import_react9.useEffect)(() => {
     if (clipsLength === 0) firstFrameFiredRef.current = false;
   }, [clipsLength]);
-  const renderFrame = (0, import_react8.useCallback)(
+  const renderFrame = (0, import_react9.useCallback)(
     async (time) => {
       if (!canvasRef.current || renderingRef.current) return;
       renderingRef.current = true;
       try {
-        const { clips, clipEffects, cropToolActive } = useEditorStore.getState();
-        await renderPreview(canvasRef.current, clips, time, clipEffects, cropToolActive);
+        const { clips, clipEffects, cropToolActive, shapes } = useEditorStore.getState();
+        await renderPreview(canvasRef.current, clips, time, clipEffects, cropToolActive, shapes);
         if (!firstFrameFiredRef.current) {
           firstFrameFiredRef.current = true;
           onFirstFrame == null ? void 0 : onFirstFrame();
@@ -2365,7 +3247,7 @@ function usePlayback(canvasRef, onFirstFrame) {
     },
     [canvasRef, onFirstFrame]
   );
-  const renderSourceFrame = (0, import_react8.useCallback)(
+  const renderSourceFrame = (0, import_react9.useCallback)(
     async (clipId, sourceTime) => {
       var _a;
       if (!canvasRef.current || renderingRef.current) return;
@@ -2386,15 +3268,16 @@ function usePlayback(canvasRef, onFirstFrame) {
     },
     [canvasRef]
   );
-  const renderFrameRef = (0, import_react8.useRef)(renderFrame);
+  const renderFrameRef = (0, import_react9.useRef)(renderFrame);
   renderFrameRef.current = renderFrame;
-  const renderSourceFrameRef = (0, import_react8.useRef)(renderSourceFrame);
+  const renderSourceFrameRef = (0, import_react9.useRef)(renderSourceFrame);
   renderSourceFrameRef.current = renderSourceFrame;
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     let lastTime = useEditorStore.getState().currentTime;
     let lastEffects = useEditorStore.getState().clipEffects;
     let lastTrimScrub = useEditorStore.getState().trimScrub;
     let lastCropToolActive = useEditorStore.getState().cropToolActive;
+    let lastShapes = useEditorStore.getState().shapes;
     return useEditorStore.subscribe((state) => {
       if (state.isPlaying) return;
       const scrubChanged = state.trimScrub !== lastTrimScrub;
@@ -2409,22 +3292,24 @@ function usePlayback(canvasRef, onFirstFrame) {
       const timeChanged = state.currentTime !== lastTime;
       const effectsChanged = state.clipEffects !== lastEffects;
       const cropChanged = state.cropToolActive !== lastCropToolActive;
-      if (timeChanged || effectsChanged || cropChanged) {
+      const shapesChanged = state.shapes !== lastShapes;
+      if (timeChanged || effectsChanged || cropChanged || shapesChanged) {
         lastTime = state.currentTime;
         lastEffects = state.clipEffects;
         lastCropToolActive = state.cropToolActive;
+        lastShapes = state.shapes;
         renderFrameRef.current(state.currentTime);
       }
     });
   }, []);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (clipsLength === 0) return;
     const timer = setTimeout(() => {
       renderFrameRef.current(useEditorStore.getState().currentTime);
     }, 100);
     return () => clearTimeout(timer);
   }, [clipsLength]);
-  (0, import_react8.useEffect)(() => {
+  (0, import_react9.useEffect)(() => {
     if (!isPlaying) {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -2467,11 +3352,18 @@ function usePlayback(canvasRef, onFirstFrame) {
         if (canvasRef.current && !renderingRef.current) {
           const frame = active.decoder.captureCurrentFrame();
           if (frame) {
-            const { clipEffects, cropToolActive } = useEditorStore.getState();
+            const { clipEffects, cropToolActive, shapes } = useEditorStore.getState();
             const base = (_a = clipEffects[active.clip.id]) != null ? _a : DEFAULT_EFFECTS;
             const effects = cropToolActive ? __spreadProps(__spreadValues({}, base), { cropX: 0, cropY: 0, cropW: 1, cropH: 1 }) : base;
             renderer.renderFrame(frame, canvasRef.current, effects);
             frame.close();
+            const visibleShapes = shapes.filter(
+              (s) => s.startTime <= currentTime && currentTime < s.endTime
+            );
+            if (visibleShapes.length > 0) {
+              const ctx = canvasRef.current.getContext("2d");
+              if (ctx) drawShapesOnCtx(ctx, visibleShapes, canvasRef.current.width, canvasRef.current.height);
+            }
           }
         }
       }
@@ -2520,18 +3412,18 @@ function togglePlayAction() {
 
 // components/editor/preview/PreviewPanel.tsx
 var import_shallow = require("zustand/react/shallow");
-var import_jsx_runtime7 = require("react/jsx-runtime");
+var import_jsx_runtime8 = require("react/jsx-runtime");
 function PreviewPanel({ activeTool }) {
   var _a;
-  const canvasRef = (0, import_react9.useRef)(null);
-  const fileInputRef = (0, import_react9.useRef)(null);
-  const [isMuted, setIsMuted] = (0, import_react9.useState)(false);
-  const [audioBlocked, setAudioBlocked] = (0, import_react9.useState)(false);
-  const [panX, setPanX] = (0, import_react9.useState)(0);
-  const [panY, setPanY] = (0, import_react9.useState)(0);
-  const [isPanning, setIsPanning] = (0, import_react9.useState)(false);
-  const panDragRef = (0, import_react9.useRef)(null);
-  const [previewReady, setPreviewReady] = (0, import_react9.useState)(false);
+  const canvasRef = (0, import_react10.useRef)(null);
+  const fileInputRef = (0, import_react10.useRef)(null);
+  const [isMuted, setIsMuted] = (0, import_react10.useState)(true);
+  const [audioBlocked, setAudioBlocked] = (0, import_react10.useState)(false);
+  const [panX, setPanX] = (0, import_react10.useState)(0);
+  const [panY, setPanY] = (0, import_react10.useState)(0);
+  const [isPanning, setIsPanning] = (0, import_react10.useState)(false);
+  const panDragRef = (0, import_react10.useRef)(null);
+  const [previewReady, setPreviewReady] = (0, import_react10.useState)(false);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const duration = useEditorStore((s) => s.duration);
   const currentTime = useEditorStore((s) => s.currentTime);
@@ -2541,28 +3433,28 @@ function PreviewPanel({ activeTool }) {
   const storeZoom = useEditorStore((s) => s.zoom);
   const previewScale = storeZoom / 80;
   const { importFiles } = useVideoImport();
-  usePlayback(canvasRef, (0, import_react9.useCallback)(() => setPreviewReady(true), []));
-  (0, import_react9.useEffect)(() => {
+  usePlayback(canvasRef, (0, import_react10.useCallback)(() => setPreviewReady(true), []));
+  (0, import_react10.useEffect)(() => {
     if (previewScale <= 1) {
       setPanX(0);
       setPanY(0);
     }
   }, [previewScale]);
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     if (clips.length === 0) setPreviewReady(false);
   }, [clips.length]);
-  const handlePanDown = (0, import_react9.useCallback)((e) => {
+  const handlePanDown = (0, import_react10.useCallback)((e) => {
     if (previewScale <= 1) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsPanning(true);
     panDragRef.current = { startX: e.clientX, startY: e.clientY, startPanX: panX, startPanY: panY };
   }, [previewScale, panX, panY]);
-  const handlePanMove = (0, import_react9.useCallback)((e) => {
+  const handlePanMove = (0, import_react10.useCallback)((e) => {
     if (!panDragRef.current) return;
     setPanX(panDragRef.current.startPanX + (e.clientX - panDragRef.current.startX));
     setPanY(panDragRef.current.startPanY + (e.clientY - panDragRef.current.startY));
   }, []);
-  const handlePanUp = (0, import_react9.useCallback)(() => {
+  const handlePanUp = (0, import_react10.useCallback)(() => {
     panDragRef.current = null;
     setIsPanning(false);
   }, []);
@@ -2578,12 +3470,12 @@ function PreviewPanel({ activeTool }) {
     const cropH = (_b = effects == null ? void 0 : effects.cropH) != null ? _b : 1;
     return `${cropW * activeClip.width}/${cropH * activeClip.height}`;
   })();
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     if (!activeClip) return;
     const decoder = getDecoderForFile(activeClip.file);
     decoder.setMuted(isMuted);
   }, [isMuted, activeClip]);
-  (0, import_react9.useEffect)(() => {
+  (0, import_react10.useEffect)(() => {
     if (!isPlaying || !activeClip) return;
     const timer = setTimeout(() => {
       const decoder = getDecoderForFile(activeClip.file);
@@ -2596,7 +3488,7 @@ function PreviewPanel({ activeTool }) {
     if (audioBlocked && isMuted) setAudioBlocked(false);
   };
   const hasClips = clips.length > 0;
-  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
     "div",
     {
       className: "relative flex-1 flex items-center justify-center overflow-hidden min-h-0",
@@ -2604,22 +3496,23 @@ function PreviewPanel({ activeTool }) {
       onPointerDown: handlePanDown,
       onPointerMove: handlePanMove,
       onPointerUp: handlePanUp,
-      children: hasClips ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+      children: hasClips ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
           "div",
           {
             className: "relative max-w-full max-h-full",
             style: { aspectRatio, display: "flex", transform: `translate(${panX}px, ${panY}px) scale(${previewScale})`, transformOrigin: "center center" },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(PreviewCanvas, { ref: canvasRef }),
-              !previewReady && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "absolute inset-0 flex items-center justify-center z-10", style: { background: "var(--kt-bg-preview)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-8 h-8 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(OverlayLayer, {}),
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(DrawingCanvas, { isActive: activeTool === "annotate" }),
-              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CropOverlay, {})
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(PreviewCanvas, { ref: canvasRef }),
+              !previewReady && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "absolute inset-0 flex items-center justify-center z-10", style: { background: "var(--kt-bg-preview)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-8 h-8 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(OverlayLayer, {}),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(DrawingCanvas, { isActive: activeTool === "annotate" }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(ShapeOverlay, { isActive: activeTool === "annotate" }),
+              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(CropOverlay, {})
             ]
           }
         ),
-        audioBlocked && !isMuted && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        audioBlocked && !isMuted && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
           import_framer_motion2.motion.div,
           {
             initial: { opacity: 0, y: -4 },
@@ -2627,43 +3520,43 @@ function PreviewPanel({ activeTool }) {
             className: "absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-sm border text-xs",
             style: { background: "var(--kt-bg-surface)", borderColor: "var(--kt-border)", color: "var(--kt-text-secondary)" },
             children: [
-              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-3.5 h-3.5 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z", clipRule: "evenodd" }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-3.5 h-3.5 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { fillRule: "evenodd", d: "M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z", clipRule: "evenodd" }) }),
               "Audio blocked by browser \u2014 open in Chrome for sound"
             ]
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             import_framer_motion2.motion.button,
             {
               whileTap: { scale: 0.92 },
               onClick: togglePlayAction,
               disabled: duration === 0,
-              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors",
+              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors shrink-0",
               style: { background: "var(--kt-text-primary)", color: "var(--kt-bg-base)" },
-              children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4 translate-x-0.5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z", clipRule: "evenodd" }) })
+              children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { fillRule: "evenodd", d: "M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z", clipRule: "evenodd" }) })
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
             import_framer_motion2.motion.button,
             {
               whileTap: { scale: 0.92 },
               onClick: handleMuteToggle,
-              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors backdrop-blur-sm",
+              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors backdrop-blur-sm shrink-0",
               style: { background: "var(--kt-bg-subtle-hover)", color: "var(--kt-text-primary)" },
               title: isMuted ? "Unmute" : "Mute",
-              children: isMuted ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z", clipRule: "evenodd" }) })
+              children: isMuted ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z", clipRule: "evenodd" }) })
             }
           )
         ] })
-      ] }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
         import_framer_motion2.motion.div,
         {
           initial: { opacity: 0, y: 6 },
           animate: { opacity: 1, y: 0 },
           className: "flex flex-col items-center gap-4 select-none",
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
               "button",
               {
                 onClick: () => {
@@ -2673,15 +3566,15 @@ function PreviewPanel({ activeTool }) {
                 className: "flex flex-col items-center gap-3 px-8 py-6 rounded-xl border border-dashed transition-colors cursor-pointer group",
                 style: { borderColor: "var(--kt-border-strong)" },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-12 h-12 rounded-full flex items-center justify-center transition-colors", style: { background: "var(--kt-bg-subtle)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-6 h-6", fill: "none", stroke: "currentColor", strokeWidth: 1.5, viewBox: "0 0 24 24", style: { color: "var(--kt-text-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "text-center", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "text-sm font-medium", style: { color: "var(--kt-text-primary)" }, children: "Import a video" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "text-xs mt-0.5", style: { color: "var(--kt-text-muted)" }, children: "or drag and drop anywhere" })
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-12 h-12 rounded-full flex items-center justify-center transition-colors", style: { background: "var(--kt-bg-subtle)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("svg", { className: "w-6 h-6", fill: "none", stroke: "currentColor", strokeWidth: 1.5, viewBox: "0 0 24 24", style: { color: "var(--kt-text-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "text-center", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "text-sm font-medium", style: { color: "var(--kt-text-primary)" }, children: "Import a video" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "text-xs mt-0.5", style: { color: "var(--kt-text-muted)" }, children: "or drag and drop anywhere" })
                   ] })
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
               "input",
               {
                 ref: fileInputRef,
@@ -2700,7 +3593,7 @@ function PreviewPanel({ activeTool }) {
 }
 
 // components/editor/panels/TrimPanel.tsx
-var import_react10 = require("react");
+var import_react11 = require("react");
 var import_shallow2 = require("zustand/react/shallow");
 
 // lib/timeline/timeUtils.ts
@@ -2716,7 +3609,7 @@ function formatTime(seconds) {
 }
 
 // components/editor/panels/TrimPanel.tsx
-var import_jsx_runtime8 = require("react/jsx-runtime");
+var import_jsx_runtime9 = require("react/jsx-runtime");
 var STRIP_HEIGHT = 56;
 var RULER_H = 20;
 var TOTAL_H = RULER_H + STRIP_HEIGHT + 16;
@@ -2725,9 +3618,9 @@ var HANDLE_W = 14;
 var thumbCache = /* @__PURE__ */ new Map();
 function TrimPanel() {
   var _a, _b, _c;
-  const containerRef = (0, import_react10.useRef)(null);
-  const [containerWidth, setContainerWidth] = (0, import_react10.useState)(0);
-  const dragRef = (0, import_react10.useRef)(null);
+  const containerRef = (0, import_react11.useRef)(null);
+  const [containerWidth, setContainerWidth] = (0, import_react11.useState)(0);
+  const dragRef = (0, import_react11.useRef)(null);
   const clips = useEditorStore((0, import_shallow2.useShallow)((s) => s.clips.filter((c) => c.trackId === "track-video")));
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const currentTime = useEditorStore((s) => s.currentTime);
@@ -2742,13 +3635,15 @@ function TrimPanel() {
   const transitions = useEditorStore((s) => s.transitions);
   const addTransition = useEditorStore((s) => s.addTransition);
   const removeTransition = useEditorStore((s) => s.removeTransition);
+  const muted = useEditorStore((s) => s.muted);
+  const toggleMuted = useEditorStore((s) => s.toggleMuted);
   const clip = (_b = (_a = clips.find((c) => c.id === selectedClipId)) != null ? _a : clips[0]) != null ? _b : null;
-  (0, import_react10.useEffect)(() => {
+  (0, import_react11.useEffect)(() => {
     if (!selectedClipId && clips.length > 0) {
       setSelectedClip(clips[0].id);
     }
   }, [clips, selectedClipId, setSelectedClip]);
-  (0, import_react10.useEffect)(() => {
+  (0, import_react11.useEffect)(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
@@ -2759,19 +3654,19 @@ function TrimPanel() {
   }, []);
   const sourceDuration = (_c = clip == null ? void 0 : clip.sourceDuration) != null ? _c : 1;
   const zoom = containerWidth > 0 && sourceDuration > 0 ? containerWidth / sourceDuration : 1;
-  const [localSourceTime, setLocalSourceTime] = (0, import_react10.useState)(0);
-  const isDraggingRef = (0, import_react10.useRef)(false);
-  const wasPlayingRef = (0, import_react10.useRef)(false);
-  (0, import_react10.useEffect)(() => {
+  const [localSourceTime, setLocalSourceTime] = (0, import_react11.useState)(0);
+  const isDraggingRef = (0, import_react11.useRef)(false);
+  const wasPlayingRef = (0, import_react11.useRef)(false);
+  (0, import_react11.useEffect)(() => {
     if (isDraggingRef.current || !clip) return;
     const src = clip.trimIn + (currentTime - clip.startTime);
     setLocalSourceTime(Math.max(0, Math.min(src, clip.sourceDuration)));
   }, [currentTime, clip]);
-  const [thumbs, setThumbs] = (0, import_react10.useState)(() => {
+  const [thumbs, setThumbs] = (0, import_react11.useState)(() => {
     var _a2;
     return (_a2 = thumbCache.get("")) != null ? _a2 : [];
   });
-  (0, import_react10.useEffect)(() => {
+  (0, import_react11.useEffect)(() => {
     if (!clip || containerWidth === 0) return;
     const cached = thumbCache.get(clip.id);
     if (cached) {
@@ -2805,7 +3700,7 @@ function TrimPanel() {
     });
   }, [clip == null ? void 0 : clip.id, containerWidth]);
   const toX = (sec) => sec * zoom;
-  const handlePointerMove = (0, import_react10.useCallback)(
+  const handlePointerMove = (0, import_react11.useCallback)(
     (e) => {
       const d = dragRef.current;
       if (!d || !clip || !containerRef.current) return;
@@ -2833,7 +3728,7 @@ function TrimPanel() {
     },
     [clip, zoom, setTrimScrub, trimClipStart, trimClipEnd]
   );
-  const handlePointerUp = (0, import_react10.useCallback)(() => {
+  const handlePointerUp = (0, import_react11.useCallback)(() => {
     if (!clip) return;
     const d = dragRef.current;
     dragRef.current = null;
@@ -2851,7 +3746,7 @@ function TrimPanel() {
       }
     }
   }, [clip, localSourceTime, duration, setCurrentTime, setTrimScrub]);
-  const beginDrag = (0, import_react10.useCallback)(
+  const beginDrag = (0, import_react11.useCallback)(
     (e, type) => {
       var _a2;
       if (!clip) return;
@@ -2886,7 +3781,7 @@ function TrimPanel() {
   for (let t = 0; t <= Math.ceil(sourceDuration); t += minorInterval) {
     rulerTicks.push({ t, isMajor: Math.abs(t % majorInterval) < minorInterval / 2 });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
     "div",
     {
       ref: containerRef,
@@ -2895,28 +3790,28 @@ function TrimPanel() {
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
       children: [
-        (!clip || containerWidth === 0) && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex items-center justify-center", style: { height: TOTAL_H }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "text-xs", style: { color: "var(--kt-text-faint)" }, children: clips.length === 0 ? "Import a video to trim" : "Loading\u2026" }) }),
-        clip && containerWidth > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+        (!clip || containerWidth === 0) && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "flex items-center justify-center", style: { height: TOTAL_H }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("p", { className: "text-xs", style: { color: "var(--kt-text-faint)" }, children: clips.length === 0 ? "Import a video to trim" : "Loading\u2026" }) }),
+        clip && containerWidth > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
             "div",
             {
               className: "absolute top-0 left-0 right-0 cursor-col-resize",
               style: { height: RULER_H },
               onPointerDown: (e) => beginDrag(e, "scrub"),
-              children: rulerTicks.map(({ t, isMajor }) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "absolute top-0 flex flex-col", style: { left: toX(t) }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: `w-px ${isMajor ? "h-2.5" : "h-1.5"}`, style: { background: isMajor ? "var(--kt-tick-major)" : "var(--kt-tick-minor)" } }),
-                isMajor && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "text-[9px] ml-1 leading-none tabular-nums", style: { color: "var(--kt-text-muted)" }, children: formatTime(t) })
+              children: rulerTicks.map(({ t, isMajor }) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "absolute top-0 flex flex-col", style: { left: toX(t) }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: `w-px ${isMajor ? "h-2.5" : "h-1.5"}`, style: { background: isMajor ? "var(--kt-tick-major)" : "var(--kt-tick-minor)" } }),
+                isMajor && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-[9px] ml-1 leading-none tabular-nums", style: { color: "var(--kt-text-muted)" }, children: formatTime(t) })
               ] }, t))
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "div",
             {
               className: "absolute left-0 right-0 cursor-col-resize",
               style: { top: RULER_H, height: STRIP_HEIGHT },
               onPointerDown: (e) => beginDrag(e, "scrub"),
               children: [
-                thumbs.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex h-full pointer-events-none", children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                thumbs.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "flex h-full pointer-events-none", children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "img",
                   {
                     src,
@@ -2926,20 +3821,20 @@ function TrimPanel() {
                     style: { filter: `brightness(var(--kt-dimmed-thumb))` }
                   },
                   i
-                )) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-full h-full flex items-center justify-center pointer-events-none", style: { background: "var(--kt-bg-surface)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-4 h-4 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
+                )) }) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-full h-full flex items-center justify-center pointer-events-none", style: { background: "var(--kt-bg-surface)" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-4 h-4 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
                 (() => {
                   const selLeft = toX(clip.trimIn);
                   const selWidth = Math.max(toX(clip.trimOut) - toX(clip.trimIn), HANDLE_W * 2 + 4);
-                  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute top-0 overflow-hidden pointer-events-none",
                         style: { left: selLeft, width: selWidth, height: STRIP_HEIGHT },
-                        children: thumbs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex h-full", style: { width: containerWidth, marginLeft: -selLeft }, children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("img", { src, alt: "", className: "h-full flex-1 object-cover", draggable: false }, i)) })
+                        children: thumbs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "flex h-full", style: { width: containerWidth, marginLeft: -selLeft }, children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("img", { src, alt: "", className: "h-full flex-1 object-cover", draggable: false }, i)) })
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute top-0 pointer-events-none",
@@ -2952,31 +3847,31 @@ function TrimPanel() {
                         }
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute top-0 bottom-0 flex items-center justify-center cursor-w-resize rounded-l",
                         style: { left: selLeft, width: HANDLE_W, zIndex: 10, background: "var(--kt-accent)" },
                         onPointerDown: (e) => beginDrag(e, "trimStart"),
-                        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
                         ] })
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute top-0 bottom-0 flex items-center justify-center cursor-e-resize rounded-r",
                         style: { left: selLeft + selWidth - HANDLE_W, width: HANDLE_W, zIndex: 10, background: "var(--kt-accent)" },
                         onPointerDown: (e) => beginDrag(e, "trimEnd"),
-                        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
                         ] })
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute pointer-events-none text-[9px] font-semibold tabular-nums px-1 rounded",
@@ -2984,7 +3879,7 @@ function TrimPanel() {
                         children: formatTime(clip.trimIn)
                       }
                     ),
-                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                       "div",
                       {
                         className: "absolute pointer-events-none text-[9px] font-semibold tabular-nums px-1 rounded",
@@ -2997,20 +3892,20 @@ function TrimPanel() {
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "div",
             {
               className: "absolute top-0 z-20 pointer-events-none",
               style: { left: toX(localSourceTime), bottom: 0 },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "div",
                   {
                     className: "absolute w-px",
                     style: { top: RULER_H - 2, bottom: 0, left: 0, transform: "translateX(-50%)", background: "var(--kt-text-primary)" }
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "div",
                   {
                     className: "absolute -translate-x-1/2 border rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums cursor-col-resize pointer-events-auto",
@@ -3019,7 +3914,7 @@ function TrimPanel() {
                     children: formatTime(localSourceTime)
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "div",
                   {
                     className: "absolute -translate-x-1/2",
@@ -3036,18 +3931,18 @@ function TrimPanel() {
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
             "div",
             {
               className: "absolute right-3 flex items-center gap-2",
               style: { top: RULER_H + 2 },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded", style: { color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded", style: { color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" }, children: [
                   formatTime(clip.trimOut - clip.trimIn),
                   " / ",
                   formatTime(clip.sourceDuration)
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                   "button",
                   {
                     onClick: () => {
@@ -3076,7 +3971,7 @@ function TrimPanel() {
                   const hasTransition = transitions.some(
                     (t) => t.clipAId === clipA.id && t.clipBId === clipB.id
                   );
-                  return hasTransition ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  return hasTransition ? /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                     "button",
                     {
                       onClick: () => {
@@ -3089,7 +3984,7 @@ function TrimPanel() {
                       title: "Remove crossfade transition",
                       children: "\u2715 Crossfade"
                     }
-                  ) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
                     "button",
                     {
                       onClick: () => {
@@ -3112,21 +4007,21 @@ function TrimPanel() {
 }
 
 // components/editor/panels/FinetunePanel.tsx
-var import_jsx_runtime9 = require("react/jsx-runtime");
+var import_jsx_runtime10 = require("react/jsx-runtime");
 function SliderRow({ label, value, min, max, onValueChange, onPointerDown, displayValue }) {
   const pct = (value - min) / (max - min) * 100;
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-3", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs w-20 shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: label }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "relative flex-1 h-5 flex items-center", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "absolute inset-x-0 h-1 rounded-full", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "h-full rounded-full", style: { width: `${pct}%`, background: "var(--kt-slider-fill)" } }) }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex items-center gap-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-xs w-20 shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: label }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "relative flex-1 h-5 flex items-center", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "absolute inset-x-0 h-1 rounded-full", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "h-full rounded-full", style: { width: `${pct}%`, background: "var(--kt-slider-fill)" } }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         "div",
         {
           className: "absolute w-3.5 h-3.5 rounded-full shadow-md pointer-events-none",
           style: { left: `calc(${pct}% - 7px)`, background: "var(--kt-slider-thumb)" }
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         "input",
         {
           type: "range",
@@ -3139,7 +4034,7 @@ function SliderRow({ label, value, min, max, onValueChange, onPointerDown, displ
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs w-8 text-right tabular-nums shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: displayValue != null ? displayValue : value })
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-xs w-8 text-right tabular-nums shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: displayValue != null ? displayValue : value })
   ] });
 }
 function FinetunePanel() {
@@ -3156,10 +4051,10 @@ function FinetunePanel() {
     if (targetId) setClipEffect(targetId, key, v);
   };
   const handleSliderPointerDown = () => captureHistory();
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-6 py-3 md:py-4 max-h-[180px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center justify-between mb-2 md:mb-3", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Adjustments" }),
-      targetId && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-6 py-3 md:py-4 max-h-[180px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "flex items-center justify-between mb-2 md:mb-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Adjustments" }),
+      targetId && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         "button",
         {
           onClick: () => resetClipEffects(targetId),
@@ -3169,8 +4064,8 @@ function FinetunePanel() {
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 md:gap-y-2.5", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 md:gap-y-2.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Brightness",
@@ -3181,7 +4076,7 @@ function FinetunePanel() {
           onPointerDown: handleSliderPointerDown
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Contrast",
@@ -3192,7 +4087,7 @@ function FinetunePanel() {
           onPointerDown: handleSliderPointerDown
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Saturation",
@@ -3203,7 +4098,7 @@ function FinetunePanel() {
           onPointerDown: handleSliderPointerDown
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Rotation",
@@ -3215,7 +4110,7 @@ function FinetunePanel() {
           onPointerDown: handleSliderPointerDown
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Opacity",
@@ -3227,7 +4122,7 @@ function FinetunePanel() {
           onPointerDown: handleSliderPointerDown
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         SliderRow,
         {
           label: "Speed",
@@ -3244,7 +4139,7 @@ function FinetunePanel() {
 }
 
 // components/editor/panels/FilterPanel.tsx
-var import_jsx_runtime10 = require("react/jsx-runtime");
+var import_jsx_runtime11 = require("react/jsx-runtime");
 var PRESETS = [
   {
     id: "original",
@@ -3321,22 +4216,22 @@ function FilterPanel() {
     captureHistory();
     setClipEffects(targetId, preset.effects);
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-4 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex items-center justify-between mb-2.5", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Filters" }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex gap-2 overflow-x-auto pb-1 scrollbar-hide", children: PRESETS.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-4 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "flex items-center justify-between mb-2.5", children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Filters" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "flex gap-2 overflow-x-auto pb-1 scrollbar-hide", children: PRESETS.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)(
       "button",
       {
         onClick: () => applyPreset(preset),
         className: "shrink-0 flex flex-col items-center gap-1.5 group",
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
             "div",
             {
               className: "w-14 h-10 rounded-md overflow-hidden border-2 transition-colors",
               style: {
                 borderColor: activePreset === preset.id ? "var(--kt-accent)" : "transparent"
               },
-              children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+              children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
                 "div",
                 {
                   className: "w-full h-full",
@@ -3348,7 +4243,7 @@ function FilterPanel() {
               )
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
             "span",
             {
               className: "text-[10px] leading-none transition-colors",
@@ -3364,7 +4259,7 @@ function FilterPanel() {
 }
 
 // components/editor/panels/CropPanel.tsx
-var import_jsx_runtime11 = require("react/jsx-runtime");
+var import_jsx_runtime12 = require("react/jsx-runtime");
 var ASPECT_PRESETS = [
   { label: "Free", ratio: null },
   { label: "16:9", ratio: [16, 9] },
@@ -3410,10 +4305,10 @@ function CropPanel() {
     setClipEffects(targetId, { cropX: 0, cropY: 0, cropW: 1, cropH: 1 });
   };
   const isDefaultCrop = effects.cropX === 0 && effects.cropY === 0 && effects.cropW === 1 && effects.cropH === 1;
-  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex items-center justify-between mb-2.5", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Aspect Ratio" }),
-      !isDefaultCrop && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex items-center justify-between mb-2.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Aspect Ratio" }),
+      !isDefaultCrop && /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
         "button",
         {
           onClick: resetCrop,
@@ -3423,7 +4318,7 @@ function CropPanel() {
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "flex gap-1.5 flex-wrap", children: ASPECT_PRESETS.map((preset) => {
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 flex-wrap", children: ASPECT_PRESETS.map((preset) => {
       const isActive = preset.ratio === null ? isDefaultCrop : (() => {
         if (!clips.find((c) => c.id === targetId)) return false;
         const clip = clips.find((c) => c.id === targetId);
@@ -3439,7 +4334,7 @@ function CropPanel() {
         }
         return Math.abs(effects.cropX - expectedX) < 0.01 && Math.abs(effects.cropY - expectedY) < 0.01 && Math.abs(effects.cropW - expectedW) < 0.01 && Math.abs(effects.cropH - expectedH) < 0.01;
       })();
-      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
         "button",
         {
           onClick: () => applyCrop(preset.ratio),
@@ -3449,12 +4344,12 @@ function CropPanel() {
         preset.label
       );
     }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("p", { className: "text-[10px] mt-2", style: { color: "var(--kt-text-faint)" }, children: "Drag handles in preview to adjust crop freely" })
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("p", { className: "text-[10px] mt-2", style: { color: "var(--kt-text-faint)" }, children: "Drag handles in preview to adjust crop freely" })
   ] });
 }
 
 // components/editor/panels/ResizePanel.tsx
-var import_jsx_runtime12 = require("react/jsx-runtime");
+var import_jsx_runtime13 = require("react/jsx-runtime");
 var RESOLUTIONS = [
   { label: "Original", value: "original", desc: "Keep source resolution" },
   { label: "1080p", value: "1080p", desc: "1920 \xD7 1080" },
@@ -3469,10 +4364,10 @@ var FPS_OPTIONS = [
 function ResizePanel() {
   const settings = useEditorStore((s) => s.settings);
   const updateSettings = useEditorStore((s) => s.updateExportSettings);
-  return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3 max-h-[160px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col md:flex-row gap-3 md:gap-8", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Resolution" }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2 flex-wrap", children: RESOLUTIONS.map((r) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3 max-h-[160px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col md:flex-row gap-3 md:gap-8", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Resolution" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1.5 mt-2 flex-wrap", children: RESOLUTIONS.map((r) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
         "button",
         {
           onClick: () => updateSettings({ resolution: r.value }),
@@ -3483,9 +4378,9 @@ function ResizePanel() {
         r.value
       )) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Frame Rate" }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2", children: FPS_OPTIONS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Frame Rate" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1.5 mt-2", children: FPS_OPTIONS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
         "button",
         {
           onClick: () => updateSettings({ fps: f.value }),
@@ -3495,9 +4390,9 @@ function ResizePanel() {
         f.value
       )) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Format" }),
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2", children: ["mp4", "webm"].map((fmt) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Format" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1.5 mt-2", children: ["mp4", "webm"].map((fmt) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
         "button",
         {
           onClick: () => updateSettings({ format: fmt }),
@@ -3511,15 +4406,21 @@ function ResizePanel() {
 }
 
 // components/editor/panels/AnnotatePanel.tsx
-var import_jsx_runtime13 = require("react/jsx-runtime");
+var import_react12 = require("react");
+var import_jsx_runtime14 = require("react/jsx-runtime");
 var COLORS = ["#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00cfff", "#ffffff", "#000000"];
 var WIDTHS = [2, 4, 8, 16];
-var TOOLS2 = [
+var DRAWING_TOOLS = [
   { key: "pen", label: "Pen" },
   { key: "eraser", label: "Eraser" },
   { key: "straight", label: "Line" },
   { key: "arrow", label: "Arrow" },
   { key: "curved", label: "Curve" }
+];
+var SHAPE_TOOLS = [
+  { key: "rectangle", label: "\u25A1 Rect" },
+  { key: "circle", label: "\u25CB Circle" },
+  { key: "text", label: "T Text" }
 ];
 function AnnotatePanel() {
   const drawingTool = useEditorStore((s) => s.drawingTool);
@@ -3533,10 +4434,138 @@ function AnnotatePanel() {
   const undoStroke = useEditorStore((s) => s.undoStroke);
   const clearStrokes = useEditorStore((s) => s.clearStrokes);
   const strokes = useEditorStore((s) => s.strokes);
-  return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Tool" }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1 flex-wrap", children: TOOLS2.map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+  const shapeTool = useEditorStore((s) => s.shapeTool);
+  const shapeStyle = useEditorStore((s) => s.shapeStyle);
+  const shapeColor = useEditorStore((s) => s.shapeColor);
+  const shapeFillColor = useEditorStore((s) => s.shapeFillColor);
+  const shapeStrokeWidth = useEditorStore((s) => s.shapeStrokeWidth);
+  const shapeText = useEditorStore((s) => s.shapeText);
+  const shapeFontSize = useEditorStore((s) => s.shapeFontSize);
+  const shapeDuration = useEditorStore((s) => s.shapeDuration);
+  const shapes = useEditorStore((s) => s.shapes);
+  const selectedShapeId = useEditorStore((s) => s.selectedShapeId);
+  const setShapeTool = useEditorStore((s) => s.setShapeTool);
+  const setShapeStyle = useEditorStore((s) => s.setShapeStyle);
+  const setShapeColor = useEditorStore((s) => s.setShapeColor);
+  const setShapeFillColor = useEditorStore((s) => s.setShapeFillColor);
+  const setShapeStrokeWidth = useEditorStore((s) => s.setShapeStrokeWidth);
+  const setShapeText = useEditorStore((s) => s.setShapeText);
+  const setShapeFontSize = useEditorStore((s) => s.setShapeFontSize);
+  const setShapeDuration = useEditorStore((s) => s.setShapeDuration);
+  const addShape = useEditorStore((s) => s.addShape);
+  const removeShape = useEditorStore((s) => s.removeShape);
+  const clearShapes = useEditorStore((s) => s.clearShapes);
+  const annotateMode = useEditorStore((s) => s.annotateMode);
+  const setAnnotateMode = useEditorStore((s) => s.setAnnotateMode);
+  const freezeOnOverlay = useEditorStore((s) => s.freezeOnOverlay);
+  const setFreezeOnOverlay = useEditorStore((s) => s.setFreezeOnOverlay);
+  return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1 mb-3 items-center", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setFreezeOnOverlay(!freezeOnOverlay),
+          className: `px-2 py-1 rounded text-[10px] font-semibold transition-colors shrink-0 ${freezeOnOverlay ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          title: `Freeze video on overlay (1) \u2014 currently ${freezeOnOverlay ? "ON" : "OFF"}`,
+          children: freezeOnOverlay ? "\u2744\uFE0F Freeze" : "\u25B6\uFE0F No freeze"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "w-px h-4 mx-1", style: { background: "var(--kt-border)" } }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setAnnotateMode("draw"),
+          className: `px-3 py-1 rounded text-xs font-medium transition-colors ${annotateMode === "draw" ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: "Draw"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setAnnotateMode("shape"),
+          className: `px-3 py-1 rounded text-xs font-medium transition-colors ${annotateMode === "shape" ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: "Shapes"
+        }
+      )
+    ] }),
+    annotateMode === "draw" ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      DrawTools,
+      {
+        drawingTool,
+        drawingColor,
+        drawingWidth,
+        annotationDuration,
+        setDrawingTool,
+        setDrawingColor,
+        setDrawingWidth,
+        setAnnotationDuration,
+        undoStroke,
+        clearStrokes,
+        strokes
+      }
+    ) : /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      ShapeTools,
+      {
+        shapeTool,
+        shapeStyle,
+        shapeColor,
+        shapeFillColor,
+        shapeStrokeWidth,
+        shapeText,
+        shapeFontSize,
+        shapeDuration,
+        shapes,
+        selectedShapeId,
+        setShapeTool,
+        setShapeStyle,
+        setShapeColor,
+        setShapeFillColor,
+        setShapeStrokeWidth,
+        setShapeText,
+        setShapeFontSize,
+        setShapeDuration,
+        addShape,
+        removeShape,
+        clearShapes
+      }
+    )
+  ] });
+}
+function DrawTools({
+  drawingTool,
+  drawingColor,
+  drawingWidth,
+  annotationDuration,
+  setDrawingTool,
+  setDrawingColor,
+  setDrawingWidth,
+  setAnnotationDuration,
+  undoStroke,
+  clearStrokes,
+  strokes
+}) {
+  const [editingDur, setEditingDur] = (0, import_react12.useState)(false);
+  const [durDraft, setDurDraft] = (0, import_react12.useState)("");
+  const durInputRef = (0, import_react12.useRef)(null);
+  const commitDur = (0, import_react12.useCallback)(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setAnnotationDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setAnnotationDuration]);
+  const startEditDur = (0, import_react12.useCallback)(() => {
+    setDurDraft(annotationDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [annotationDuration]);
+  return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Tool" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: DRAWING_TOOLS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         "button",
         {
           onClick: () => setDrawingTool(t.key),
@@ -3546,9 +4575,9 @@ function AnnotatePanel() {
         t.key
       )) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Color" }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1.5", children: COLORS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Color" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1.5", children: COLORS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         "button",
         {
           onClick: () => setDrawingColor(c),
@@ -3562,15 +4591,15 @@ function AnnotatePanel() {
         c
       )) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Width" }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1 items-center", children: WIDTHS.map((w) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Width" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 items-center", children: WIDTHS.map((w) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         "button",
         {
           onClick: () => setDrawingWidth(w),
           className: `flex items-center justify-center w-8 h-7 rounded transition-colors ${drawingWidth === w ? "" : "kt-btn-subtle"}`,
           style: drawingWidth === w ? { background: "var(--kt-accent-subtle-bg)", boxShadow: "inset 0 0 0 1px var(--kt-accent)" } : void 0,
-          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
             "div",
             {
               className: "rounded-full",
@@ -3581,14 +4610,14 @@ function AnnotatePanel() {
         w
       )) })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
         "Duration: ",
         annotationDuration,
         "s"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-2", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
           "input",
           {
             type: "range",
@@ -3604,16 +4633,49 @@ function AnnotatePanel() {
             }
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
-          annotationDuration.toFixed(1),
-          "s"
-        ] })
+        editingDur ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            ref: durInputRef,
+            type: "number",
+            min: 0.25,
+            max: 30,
+            step: 0.25,
+            value: durDraft,
+            onChange: (e) => setDurDraft(e.target.value),
+            onBlur: commitDur,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") commitDur();
+              if (e.key === "Escape") setEditingDur(false);
+            },
+            className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+            style: {
+              color: "var(--kt-text-primary)",
+              background: "var(--kt-bg-input)",
+              borderColor: "var(--kt-accent)",
+              outline: "none"
+            },
+            autoFocus: true
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            onClick: startEditDur,
+            className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+            style: { color: "var(--kt-text-secondary)" },
+            title: "Click to edit",
+            children: [
+              annotationDuration.toFixed(1),
+              "s"
+            ]
+          }
+        )
       ] })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Actions" }),
-      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex gap-1", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Actions" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
           "button",
           {
             onClick: undoStroke,
@@ -3622,7 +4684,7 @@ function AnnotatePanel() {
             children: "Undo"
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
           "button",
           {
             onClick: clearStrokes,
@@ -3634,12 +4696,306 @@ function AnnotatePanel() {
         )
       ] })
     ] })
-  ] }) });
+  ] });
+}
+var SHAPE_STYLES = [
+  { key: "simple", label: "Simple" },
+  { key: "note", label: "Note" },
+  { key: "sticky", label: "Sticky" },
+  { key: "outline", label: "Outline" },
+  { key: "neon", label: "Neon" }
+];
+function ShapeTools({
+  shapeTool,
+  shapeStyle,
+  shapeColor,
+  shapeFillColor,
+  shapeStrokeWidth,
+  shapeText,
+  shapeFontSize,
+  shapeDuration,
+  shapes,
+  selectedShapeId,
+  setShapeTool,
+  setShapeStyle,
+  setShapeColor,
+  setShapeFillColor,
+  setShapeStrokeWidth,
+  setShapeText,
+  setShapeFontSize,
+  setShapeDuration,
+  addShape,
+  removeShape,
+  clearShapes
+}) {
+  const [editingDur, setEditingDur] = (0, import_react12.useState)(false);
+  const [durDraft, setDurDraft] = (0, import_react12.useState)("");
+  const durInputRef = (0, import_react12.useRef)(null);
+  const commitDur = (0, import_react12.useCallback)(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setShapeDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setShapeDuration]);
+  const startEditDur = (0, import_react12.useCallback)(() => {
+    setDurDraft(shapeDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [shapeDuration]);
+  const handleAddShape = () => {
+    addShape({
+      type: shapeTool,
+      style: shapeStyle,
+      x: 0.5,
+      y: 0.5,
+      width: 0.3,
+      height: shapeTool === "text" ? 0.15 : 0.2,
+      text: shapeTool === "text" ? shapeText : "",
+      color: shapeColor,
+      fillColor: shapeFillColor,
+      strokeWidth: shapeStrokeWidth,
+      fontSize: shapeFontSize
+    });
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Shape" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: SHAPE_TOOLS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setShapeTool(t.key),
+          className: `px-3 py-1.5 rounded text-xs font-medium transition-colors ${shapeTool === t.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: t.label
+        },
+        t.key
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Style" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: SHAPE_STYLES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setShapeStyle(s.key),
+          className: `px-3 py-1.5 rounded text-xs font-medium transition-colors ${shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: s.label
+        },
+        s.key
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Stroke" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1.5", children: COLORS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setShapeColor(c),
+          className: "w-5 h-5 rounded-full border-2 transition-transform hover:scale-110",
+          style: {
+            background: c,
+            borderColor: shapeColor === c ? "var(--kt-text-primary)" : "transparent",
+            boxShadow: c === "#ffffff" ? "inset 0 0 0 1px var(--kt-border)" : void 0
+          }
+        },
+        c
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Fill" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1.5 items-center", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "button",
+          {
+            onClick: () => setShapeFillColor("transparent"),
+            className: `px-2 py-1 rounded text-[10px] font-medium transition-colors ${shapeFillColor === "transparent" ? "kt-btn-accent" : "kt-btn-subtle"}`,
+            children: "None"
+          }
+        ),
+        COLORS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "button",
+          {
+            onClick: () => setShapeFillColor(c),
+            className: "w-5 h-5 rounded-full border-2 transition-transform hover:scale-110",
+            style: {
+              background: c,
+              borderColor: shapeFillColor === c ? "var(--kt-text-primary)" : "transparent",
+              boxShadow: c === "#ffffff" ? "inset 0 0 0 1px var(--kt-border)" : void 0
+            }
+          },
+          c
+        ))
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Width" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 items-center", children: WIDTHS.map((w) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setShapeStrokeWidth(w),
+          className: `flex items-center justify-center w-8 h-7 rounded transition-colors ${shapeStrokeWidth === w ? "" : "kt-btn-subtle"}`,
+          style: shapeStrokeWidth === w ? { background: "var(--kt-accent-subtle-bg)", boxShadow: "inset 0 0 0 1px var(--kt-accent)" } : void 0,
+          children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            "div",
+            {
+              className: "rounded-full",
+              style: { background: "var(--kt-slider-thumb)", width: Math.min(w * 2, 20), height: Math.min(w / 2 + 2, 8) }
+            }
+          )
+        },
+        w
+      )) })
+    ] }),
+    shapeTool === "text" && /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(import_jsx_runtime14.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Text" }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            type: "text",
+            value: shapeText,
+            onChange: (e) => setShapeText(e.target.value),
+            className: "px-2 py-1 rounded text-xs border",
+            style: {
+              background: "var(--kt-bg-surface)",
+              borderColor: "var(--kt-border)",
+              color: "var(--kt-text-primary)",
+              minWidth: 100
+            }
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+          "Font: ",
+          shapeFontSize,
+          "px"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            "input",
+            {
+              type: "range",
+              min: 12,
+              max: 120,
+              step: 2,
+              value: shapeFontSize,
+              onChange: (e) => setShapeFontSize(parseInt(e.target.value, 10)),
+              className: "w-20 h-1.5 rounded-full appearance-none cursor-pointer",
+              style: {
+                background: "var(--kt-slider-track)",
+                accentColor: "var(--kt-accent)"
+              }
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
+            shapeFontSize,
+            "px"
+          ] })
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+        "Duration: ",
+        shapeDuration,
+        "s"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            type: "range",
+            min: 0.5,
+            max: 10,
+            step: 0.5,
+            value: shapeDuration,
+            onChange: (e) => setShapeDuration(parseFloat(e.target.value)),
+            className: "w-20 h-1.5 rounded-full appearance-none cursor-pointer",
+            style: {
+              background: "var(--kt-slider-track)",
+              accentColor: "var(--kt-accent)"
+            }
+          }
+        ),
+        editingDur ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            ref: durInputRef,
+            type: "number",
+            min: 0.25,
+            max: 30,
+            step: 0.25,
+            value: durDraft,
+            onChange: (e) => setDurDraft(e.target.value),
+            onBlur: commitDur,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") commitDur();
+              if (e.key === "Escape") setEditingDur(false);
+            },
+            className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+            style: {
+              color: "var(--kt-text-primary)",
+              background: "var(--kt-bg-input)",
+              borderColor: "var(--kt-accent)",
+              outline: "none"
+            },
+            autoFocus: true
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            onClick: startEditDur,
+            className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+            style: { color: "var(--kt-text-secondary)" },
+            title: "Click to edit",
+            children: [
+              shapeDuration.toFixed(1),
+              "s"
+            ]
+          }
+        )
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Actions" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "button",
+          {
+            onClick: handleAddShape,
+            className: "px-3 py-1.5 rounded text-xs font-medium kt-btn-accent transition-colors",
+            children: "+ Add"
+          }
+        ),
+        selectedShapeId && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "button",
+          {
+            onClick: () => removeShape(selectedShapeId),
+            className: "px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle transition-colors",
+            style: { color: "var(--kt-danger)" },
+            children: "Delete"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "button",
+          {
+            onClick: clearShapes,
+            disabled: shapes.length === 0,
+            className: "px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+            style: { color: "var(--kt-danger)" },
+            children: "Clear"
+          }
+        )
+      ] })
+    ] })
+  ] });
 }
 
 // components/editor/panels/StickerPanel.tsx
-var import_react11 = require("react");
-var import_jsx_runtime14 = require("react/jsx-runtime");
+var import_react13 = require("react");
+var import_jsx_runtime15 = require("react/jsx-runtime");
 var STICKER_GROUPS = [
   {
     label: "Reactions",
@@ -3664,8 +5020,26 @@ function StickerPanel() {
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
   const stickerDuration = useEditorStore((s) => s.stickerDuration);
   const setStickerDuration = useEditorStore((s) => s.setStickerDuration);
-  const imageInputRef = (0, import_react11.useRef)(null);
+  const imageInputRef = (0, import_react13.useRef)(null);
+  const durationInputRef = (0, import_react13.useRef)(null);
+  const [editingDuration, setEditingDuration] = (0, import_react13.useState)(false);
+  const [durationDraft, setDurationDraft] = (0, import_react13.useState)("");
   const stickerOverlays = overlays.filter((o) => o.type === "sticker");
+  const commitDuration = (0, import_react13.useCallback)(() => {
+    const val = parseFloat(durationDraft);
+    if (!isNaN(val)) {
+      setStickerDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDuration(false);
+  }, [durationDraft, setStickerDuration]);
+  const startEditing = (0, import_react13.useCallback)(() => {
+    setDurationDraft(stickerDuration.toFixed(2));
+    setEditingDuration(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durationInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [stickerDuration]);
   const handleAddEmoji = (emoji) => {
     addStickerOverlay({ emoji, x: 0.5, y: 0.5, scale: 1 });
   };
@@ -3686,15 +5060,15 @@ function StickerPanel() {
     reader.readAsDataURL(file);
     e.target.value = "";
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
     "div",
     {
       className: "shrink-0 border-t px-3 md:px-4 py-3 overflow-y-auto max-h-[200px]",
       style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" },
-      children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-4 h-full", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex-1 min-w-0 overflow-y-auto", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+      children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex gap-4 h-full", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex-1 min-w-0 overflow-y-auto", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "mb-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
               "button",
               {
                 onClick: () => {
@@ -3704,12 +5078,12 @@ function StickerPanel() {
                 className: "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle border transition-colors",
                 style: { borderColor: "var(--kt-border-input)" },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }),
                   "Upload image"
                 ]
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               "input",
               {
                 ref: imageInputRef,
@@ -3720,15 +5094,15 @@ function StickerPanel() {
               }
             )
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2 flex items-center gap-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-muted)" }, children: "Duration" }),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "mb-2 flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-muted)" }, children: "Duration" }),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               "input",
               {
                 type: "range",
-                min: 0.5,
+                min: 0.25,
                 max: 10,
-                step: 0.5,
+                step: 0.25,
                 value: stickerDuration,
                 onChange: (e) => setStickerDuration(parseFloat(e.target.value)),
                 className: "w-16 h-1.5 rounded-full appearance-none cursor-pointer",
@@ -3738,49 +5112,85 @@ function StickerPanel() {
                 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
-              stickerDuration.toFixed(1),
-              "s"
-            ] })
+            editingDuration ? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+              "input",
+              {
+                ref: durationInputRef,
+                type: "number",
+                min: 0.25,
+                max: 30,
+                step: 0.25,
+                value: durationDraft,
+                onChange: (e) => setDurationDraft(e.target.value),
+                onBlur: commitDuration,
+                onKeyDown: (e) => {
+                  if (e.key === "Enter") commitDuration();
+                  if (e.key === "Escape") setEditingDuration(false);
+                },
+                className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+                style: {
+                  color: "var(--kt-text-primary)",
+                  background: "var(--kt-bg-input)",
+                  borderColor: "var(--kt-accent)",
+                  outline: "none"
+                },
+                autoFocus: true
+              }
+            ) : /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+              "button",
+              {
+                onClick: startEditing,
+                className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+                style: { color: "var(--kt-text-secondary)" },
+                title: "Click to edit",
+                children: [
+                  stickerDuration.toFixed(1),
+                  "s"
+                ]
+              }
+            )
           ] }),
-          STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider block mb-1", style: { color: "var(--kt-text-faint)" }, children: group.label }),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex flex-wrap gap-1", children: group.emojis.map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex flex-wrap items-center gap-x-3 gap-y-1", children: STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex items-center shrink-0 gap-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-faint)" }, children: [
+              group.label,
+              ":"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex gap-0.5", children: group.emojis.map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               "button",
               {
                 onClick: () => handleAddEmoji(emoji),
-                className: "w-8 h-8 flex items-center justify-center rounded kt-emoji-btn transition-colors text-lg",
+                className: "w-9 h-9 flex items-center justify-center rounded kt-emoji-btn transition-colors text-xl",
                 title: `Add ${emoji}`,
                 children: emoji
               },
               emoji
             )) })
-          ] }, group.label))
+          ] }, group.label)) })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "hidden md:flex w-36 shrink-0 flex-col gap-1.5", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "hidden md:flex w-36 shrink-0 flex-col gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
             "Active (",
             stickerOverlays.length,
             ")"
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 overflow-y-auto", children: [
-            stickerOverlays.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[11px]", style: { color: "var(--kt-text-faint)" }, children: "Click to add stickers" }),
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col gap-1 overflow-y-auto", children: [
+            stickerOverlays.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "text-[11px]", style: { color: "var(--kt-text-faint)" }, children: "Click to add stickers" }),
             stickerOverlays.map((o) => {
               if (o.type !== "sticker") return null;
-              return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+              return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
                 "div",
                 {
                   className: "flex items-center justify-between px-2 py-1 rounded",
                   style: { background: "var(--kt-bg-subtle)" },
                   children: [
-                    o.imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("img", { src: o.imageUrl, alt: "", className: "w-6 h-6 object-cover rounded" }) : /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-lg", children: o.emoji }),
-                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+                    o.imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("img", { src: o.imageUrl, alt: "", className: "w-6 h-6 object-cover rounded" }) : /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "text-lg", children: o.emoji }),
+                    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
                       "button",
                       {
                         onClick: () => removeOverlay(o.id),
                         className: "transition-colors",
                         style: { color: "var(--kt-text-faint)" },
-                        children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("svg", { className: "w-3 h-3", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("path", { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }) })
+                        children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-3 h-3", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }) })
                       }
                     )
                   ]
@@ -3796,17 +5206,17 @@ function StickerPanel() {
 }
 
 // components/editor/panels/VoiceRecorder.tsx
-var import_react12 = require("react");
+var import_react14 = require("react");
 var import_shallow3 = require("zustand/react/shallow");
-var import_jsx_runtime15 = require("react/jsx-runtime");
+var import_jsx_runtime16 = require("react/jsx-runtime");
 function VoiceRecorder() {
-  const [isRecording, setIsRecording] = (0, import_react12.useState)(false);
-  const [recordingDuration, setRecordingDuration] = (0, import_react12.useState)(0);
-  const mediaRecorderRef = (0, import_react12.useRef)(null);
-  const chunksRef = (0, import_react12.useRef)([]);
-  const timerRef = (0, import_react12.useRef)(null);
-  const streamRef = (0, import_react12.useRef)(null);
-  const recordingDurationRef = (0, import_react12.useRef)(0);
+  const [isRecording, setIsRecording] = (0, import_react14.useState)(false);
+  const [recordingDuration, setRecordingDuration] = (0, import_react14.useState)(0);
+  const mediaRecorderRef = (0, import_react14.useRef)(null);
+  const chunksRef = (0, import_react14.useRef)([]);
+  const timerRef = (0, import_react14.useRef)(null);
+  const streamRef = (0, import_react14.useRef)(null);
+  const recordingDurationRef = (0, import_react14.useRef)(0);
   const overlays = useEditorStore((0, import_shallow3.useShallow)((s) => s.overlays.filter((o) => o.type === "voice")));
   const addVoiceOverlay = useEditorStore((s) => s.addVoiceOverlay);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
@@ -3816,13 +5226,13 @@ function VoiceRecorder() {
   const duration = useEditorStore((s) => s.duration);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  (0, import_react12.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
-  const startRecording = (0, import_react12.useCallback)(async () => {
+  const startRecording = (0, import_react14.useCallback)(async () => {
     setPlaying(false);
     setPlaybackRate(0);
     try {
@@ -3854,7 +5264,7 @@ function VoiceRecorder() {
       console.error("Failed to start recording:", err);
     }
   }, [addVoiceOverlay]);
-  const stopRecording = (0, import_react12.useCallback)(() => {
+  const stopRecording = (0, import_react14.useCallback)(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -3870,9 +5280,9 @@ function VoiceRecorder() {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col gap-3 p-3", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { className: "text-xs font-medium", style: { color: "var(--kt-text-secondary)" }, children: "Voice Comment" }),
-    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-col gap-3 p-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "text-xs font-medium", style: { color: "var(--kt-text-secondary)" }, children: "Voice Comment" }),
+    /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
       "button",
       {
         onClick: isRecording ? stopRecording : startRecording,
@@ -3881,19 +5291,19 @@ function VoiceRecorder() {
           background: isRecording ? "var(--kt-accent)" : "var(--kt-bg-subtle-hover)",
           color: isRecording ? "#fff" : "var(--kt-text-primary)"
         },
-        children: isRecording ? /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "w-2.5 h-2.5 rounded-full bg-white animate-pulse" }),
+        children: isRecording ? /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { className: "w-2.5 h-2.5 rounded-full bg-white animate-pulse" }),
           "Stop Recording (",
           formatTime2(recordingDuration),
           ")"
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
           "Start Recording"
         ] })
       }
     ),
-    overlays.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col gap-1.5 mt-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("p", { className: "text-[10px] font-medium uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+    overlays.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-col gap-1.5 mt-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("p", { className: "text-[10px] font-medium uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
         "Recorded (",
         overlays.length,
         ")"
@@ -3902,8 +5312,8 @@ function VoiceRecorder() {
         if (overlay.type !== "voice") return null;
         const isSelected = overlay.id === selectedOverlayId;
         const voiceDuration = overlay.endTime - overlay.startTime;
-        return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+        return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
             "div",
             {
               onClick: () => selectOverlay(isSelected ? null : overlay.id),
@@ -3913,12 +5323,12 @@ function VoiceRecorder() {
                 color: "var(--kt-text-primary)"
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-4 h-4 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "flex-1 truncate", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("svg", { className: "w-4 h-4 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("span", { className: "flex-1 truncate", children: [
                   "Voice ",
                   formatTime2(voiceDuration)
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
                   "button",
                   {
                     onClick: (e) => {
@@ -3927,16 +5337,16 @@ function VoiceRecorder() {
                     },
                     className: "p-1 rounded hover:opacity-70 transition-opacity",
                     style: { color: "var(--kt-text-muted)" },
-                    children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" }) })
+                    children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" }) })
                   }
                 )
               ]
             }
           ),
-          isSelected && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex gap-2 mt-1.5 px-2.5", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex-1", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "Start" }),
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          isSelected && /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex gap-2 mt-1.5 px-2.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "Start" }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
                 "input",
                 {
                   type: "number",
@@ -3959,9 +5369,9 @@ function VoiceRecorder() {
                 }
               )
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex-1", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "End" }),
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "End" }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
                 "input",
                 {
                   type: "number",
@@ -3992,7 +5402,7 @@ function VoiceRecorder() {
 }
 
 // hooks/useKeyboardShortcuts.ts
-var import_react13 = require("react");
+var import_react15 = require("react");
 function useKeyboardShortcuts() {
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
   const setZoomFn = useEditorStore((s) => s.setZoom);
@@ -4003,7 +5413,7 @@ function useKeyboardShortcuts() {
   const redo = useEditorStore((s) => s.redo);
   const captureHistory = useEditorStore((s) => s.captureHistory);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  (0, import_react13.useEffect)(() => {
+  (0, import_react15.useEffect)(() => {
     const handler = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const { currentTime, fps, duration, zoom, playbackRate } = useEditorStore.getState();
@@ -4079,6 +5489,13 @@ function useKeyboardShortcuts() {
             setPlaybackRate(0);
           }
           break;
+        case "1":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            const { freezeOnOverlay, setFreezeOnOverlay } = useEditorStore.getState();
+            setFreezeOnOverlay(!freezeOnOverlay);
+          }
+          break;
       }
     };
     window.addEventListener("keydown", handler);
@@ -4088,9 +5505,9 @@ function useKeyboardShortcuts() {
 
 // components/editor/Editor.tsx
 var import_shallow4 = require("zustand/react/shallow");
-var import_jsx_runtime16 = require("react/jsx-runtime");
+var import_jsx_runtime17 = require("react/jsx-runtime");
 function Editor() {
-  const [activeTool, setActiveTool] = (0, import_react14.useState)("trim");
+  const [activeTool, setActiveTool] = (0, import_react16.useState)("trim");
   const setCropToolActive = useEditorStore((s) => s.setCropToolActive);
   const { status: exportStatus, progress: exportProgress, outputUrl } = useEditorStore(
     (0, import_shallow4.useShallow)((s) => ({ status: s.status, progress: s.progress, outputUrl: s.outputUrl }))
@@ -4102,14 +5519,14 @@ function Editor() {
   const { importFiles } = useVideoImport();
   const { downloadExport, cancelExport } = useExport();
   useKeyboardShortcuts();
-  const handleToolChange = (0, import_react14.useCallback)((tool) => {
+  const handleToolChange = (0, import_react16.useCallback)((tool) => {
     setActiveTool(tool);
     setCropToolActive(tool === "crop");
   }, [setCropToolActive]);
-  const onDragOver = (0, import_react14.useCallback)((e) => {
+  const onDragOver = (0, import_react16.useCallback)((e) => {
     e.preventDefault();
   }, []);
-  const onDrop = (0, import_react14.useCallback)(
+  const onDrop = (0, import_react16.useCallback)(
     (e) => {
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
@@ -4117,7 +5534,7 @@ function Editor() {
     },
     [importFiles]
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
+  return /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(
     "div",
     {
       className: "relative flex flex-col w-full h-full overflow-hidden rounded-xl",
@@ -4125,7 +5542,7 @@ function Editor() {
       onDragOver,
       onDrop,
       children: [
-        /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(import_framer_motion3.AnimatePresence, { children: showOverlay && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(import_framer_motion3.AnimatePresence, { children: showOverlay && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
           import_framer_motion3.motion.div,
           {
             initial: { opacity: 0 },
@@ -4133,11 +5550,11 @@ function Editor() {
             exit: { opacity: 0 },
             className: "absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 backdrop-blur-sm rounded-xl",
             style: { background: "var(--kt-bg-overlay)" },
-            children: isExportDone ? /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "w-10 h-10 flex items-center justify-center rounded-full", style: { background: "var(--kt-success-bg)" }, children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("svg", { className: "w-5 h-5", style: { color: "var(--kt-success)" }, fill: "none", stroke: "currentColor", strokeWidth: 2.5, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Export complete" }),
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex items-center gap-3 mt-1", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+            children: isExportDone ? /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(import_jsx_runtime17.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { className: "w-10 h-10 flex items-center justify-center rounded-full", style: { background: "var(--kt-success-bg)" }, children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("svg", { className: "w-5 h-5", style: { color: "var(--kt-success)" }, fill: "none", stroke: "currentColor", strokeWidth: 2.5, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Export complete" }),
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "flex items-center gap-3 mt-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                   "button",
                   {
                     onClick: () => {
@@ -4149,7 +5566,7 @@ function Editor() {
                     children: "Download"
                   }
                 ),
-                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                   "button",
                   {
                     onClick: resetExport,
@@ -4158,9 +5575,9 @@ function Editor() {
                   }
                 )
               ] })
-            ] }) : /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Exporting\u2026" }),
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "w-64 h-1.5 rounded-full overflow-hidden", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(import_jsx_runtime17.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Exporting\u2026" }),
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { className: "w-64 h-1.5 rounded-full overflow-hidden", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   className: "h-full rounded-full",
@@ -4169,11 +5586,11 @@ function Editor() {
                   transition: { duration: 0.3 }
                 }
               ) }),
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("p", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-tertiary)" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("p", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-tertiary)" }, children: [
                 exportProgress,
                 "%"
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 "button",
                 {
                   onClick: cancelExport,
@@ -4184,98 +5601,98 @@ function Editor() {
             ] })
           }
         ) }),
-        /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(TopBar, {}),
-        /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-1 overflow-hidden min-h-0 md:flex-row flex-col", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "hidden md:flex", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange }) }),
-          /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-col flex-1 overflow-hidden min-w-0", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(PreviewPanel, { activeTool }),
-            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "flex md:hidden", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange, horizontal: true }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_framer_motion3.AnimatePresence, { mode: "wait", initial: false, children: [
-              activeTool === "trim" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(TopBar, {}),
+        /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "flex flex-1 overflow-hidden min-h-0 md:flex-row flex-col", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { className: "hidden md:flex", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)("div", { className: "flex flex-col flex-1 overflow-hidden min-w-0", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(PreviewPanel, { activeTool }),
+            /* @__PURE__ */ (0, import_jsx_runtime17.jsx)("div", { className: "flex md:hidden", children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange, horizontal: true }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime17.jsxs)(import_framer_motion3.AnimatePresence, { mode: "wait", initial: false, children: [
+              activeTool === "trim" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(TrimPanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(TrimPanel, {})
                 },
                 "trim"
               ),
-              activeTool === "finetune" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "finetune" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(FinetunePanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(FinetunePanel, {})
                 },
                 "finetune"
               ),
-              activeTool === "filter" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "filter" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(FilterPanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(FilterPanel, {})
                 },
                 "filter"
               ),
-              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(CropPanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(CropPanel, {})
                 },
                 "crop"
               ),
-              activeTool === "resize" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "resize" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(ResizePanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(ResizePanel, {})
                 },
                 "resize"
               ),
-              activeTool === "annotate" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "annotate" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(AnnotatePanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(AnnotatePanel, {})
                 },
                 "annotate"
               ),
-              activeTool === "sticker" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "sticker" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(StickerPanel, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(StickerPanel, {})
                 },
                 "sticker"
               ),
-              activeTool === "voice" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+              activeTool === "voice" && /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
                 import_framer_motion3.motion.div,
                 {
                   initial: { opacity: 0, y: 8 },
                   animate: { opacity: 1, y: 0 },
                   exit: { opacity: 0, y: 8 },
                   transition: { duration: 0.15 },
-                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(VoiceRecorder, {})
+                  children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(VoiceRecorder, {})
                 },
                 "voice"
               )
@@ -4320,21 +5737,21 @@ function deriveAccentVars(hex, isDark) {
 }
 
 // src/Kutlass.tsx
-var import_jsx_runtime17 = require("react/jsx-runtime");
+var import_jsx_runtime18 = require("react/jsx-runtime");
 function Kutlass({
   className,
   style,
-  theme = "dark",
   accent,
   colors,
   exportSettings,
   ffmpegPaths,
   onExportComplete
 }) {
-  const colorOverrides = (0, import_react15.useMemo)(() => {
+  const storeTheme = useEditorStore((s) => s.theme);
+  const colorOverrides = (0, import_react17.useMemo)(() => {
     const vars = {};
     if (accent) {
-      const derived = deriveAccentVars(accent, theme === "dark");
+      const derived = deriveAccentVars(accent, storeTheme === "dark");
       for (const [k, v] of Object.entries(derived)) vars[`--kt-${k}`] = v;
     }
     if (colors) {
@@ -4343,16 +5760,16 @@ function Kutlass({
       }
     }
     return vars;
-  }, [accent, colors, theme]);
-  (0, import_react15.useEffect)(() => {
+  }, [accent, colors, storeTheme]);
+  (0, import_react17.useEffect)(() => {
     if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
   }, [ffmpegPaths]);
-  (0, import_react15.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (exportSettings) {
       useEditorStore.getState().updateExportSettings(exportSettings);
     }
   }, [exportSettings]);
-  (0, import_react15.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (!onExportComplete) return;
     return useEditorStore.subscribe((state, prev) => {
       if (state.status === "done" && prev.status !== "done" && state.outputUrl) {
@@ -4360,13 +5777,12 @@ function Kutlass({
       }
     });
   }, [onExportComplete]);
-  return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
     "div",
     {
-      "data-kt-theme": theme,
       className: `kutlass-editor ${className != null ? className : ""}`,
       style: __spreadValues(__spreadValues({ width: "100%", height: "100%" }, colorOverrides), style),
-      children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Editor, {})
+      children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Editor, {})
     }
   );
 }
