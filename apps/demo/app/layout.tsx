@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "kutlass — Browser Video Editor",
+  title: "IceProVideoEditor",
   description: "A fast browser-native video editor powered by WebCodecs and FFmpeg WASM",
 };
 

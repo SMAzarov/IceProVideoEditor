@@ -1,4 +1,4 @@
-import { Clip, ExportSettings, EffectParams, Overlay, FreezeSegment, Transition } from "@/types/editor";
+import { Clip, ExportSettings, EffectParams, Overlay, FreezeSegment, Transition, ShapeAnnotation } from "@/types/editor";
 import { Stroke } from "@/store/slices/drawingSlice";
 export interface ExportJob {
     clips: Clip[];
@@ -8,6 +8,7 @@ export interface ExportJob {
     overlays: Overlay[];
     freezes: FreezeSegment[];
     transitions: Transition[];
+    shapes: ShapeAnnotation[];
     onProgress: (progress: number) => void;
     signal?: AbortSignal;
 }

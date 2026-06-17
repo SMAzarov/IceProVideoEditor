@@ -88,4 +88,21 @@ export interface Transition {
     clipAId: string;
     clipBId: string;
 }
+/** Shape annotation — rectangle, circle, or text drawn on the video */
+export type ShapeType = "rectangle" | "circle" | "text";
+export interface ShapeAnnotation {
+    id: string;
+    type: ShapeType;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    color: string;
+    fillColor: string;
+    strokeWidth: number;
+    fontSize: number;
+    startTime: number;
+    endTime: number;
+}
 //# sourceMappingURL=editor.d.ts.map

@@ -108,6 +108,7 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
   const addFreeze = useEditorStore((s) => s.addFreeze);
+  const annotateMode = useEditorStore((s) => s.annotateMode);
 
   // ── Subscribe to store changes for synced canvas updates ──────────────────
   // This runs synchronously whenever currentTime or strokes change,
@@ -146,9 +147,11 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
     };
   }, []);
 
+  const isDrawMode = isActive && annotateMode === "draw";
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (!isActive) return;
+      if (!isActive || annotateMode !== "draw") return;
       // Auto-pause video when starting to draw
       setPlaying(false);
       setPlaybackRate(0);
@@ -160,12 +163,12 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
       startPointRef.current = pt;
       activeStrokeRef.current = [pt];
     },
-    [isActive, getRelative, setPlaying, setPlaybackRate]
+    [isActive, annotateMode, getRelative, setPlaying, setPlaybackRate]
   );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isDrawingRef.current || !isActive) return;
+      if (!isDrawingRef.current || !isActive || annotateMode !== "draw") return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -308,8 +311,8 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
       className="absolute inset-0 w-full h-full"
       style={{
         zIndex: 18,
-        cursor: isActive ? (drawingTool === "eraser" ? "cell" : "crosshair") : "none",
-        pointerEvents: isActive ? "auto" : "none",
+        cursor: isActive && annotateMode === "draw" ? (drawingTool === "eraser" ? "cell" : "crosshair") : "none",
+        pointerEvents: isActive && annotateMode === "draw" ? "auto" : "none",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

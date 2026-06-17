@@ -6,6 +6,7 @@ import { PreviewCanvas } from "./PreviewCanvas";
 import { CropOverlay } from "./CropOverlay";
 import { OverlayLayer } from "./OverlayLayer";
 import { DrawingCanvas } from "./DrawingCanvas";
+import { ShapeOverlay } from "./ShapeOverlay";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useEditorStore } from "@/store/editorStore";
 import { useVideoImport } from "@/hooks/useVideoImport";
@@ -135,8 +136,11 @@ export function PreviewPanel({ activeTool }: PreviewPanelProps) {
             {/* Text/sticker overlays — always visible */}
             <OverlayLayer />
 
-            {/* Drawing canvas — active only when Annotate tool is selected */}
+            {/* Drawing canvas — active only when Annotate tool is selected (draw mode) */}
             <DrawingCanvas isActive={activeTool === "annotate"} />
+
+            {/* Shape overlay — drag & drop shapes (shape mode) */}
+            <ShapeOverlay isActive={activeTool === "annotate"} />
 
             {/* Crop handles — only in crop mode */}
             {activeTool === "crop" && <CropOverlay />}

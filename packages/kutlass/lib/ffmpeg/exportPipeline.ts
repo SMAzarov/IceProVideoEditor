@@ -11,6 +11,7 @@ import {
   VoiceOverlay,
   FreezeSegment,
   Transition,
+  ShapeAnnotation,
 } from "@/types/editor";
 import { Stroke } from "@/store/slices/drawingSlice";
 import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
@@ -26,6 +27,7 @@ export interface ExportJob {
   overlays: Overlay[];
   freezes: FreezeSegment[];
   transitions: Transition[];
+  shapes: ShapeAnnotation[];
   onProgress: (progress: number) => void;
   signal?: AbortSignal;
 }
@@ -169,6 +171,82 @@ async function drawOverlays(
   }
 }
 
+function drawShapes(
+  ctx: OffscreenCanvasRenderingContext2D,
+  shapes: ShapeAnnotation[],
+  w: number,
+  h: number
+) {
+  for (const shape of shapes) {
+    ctx.save();
+
+    const cx = shape.x * w;
+    const cy = shape.y * h;
+    const sw = shape.width * w;
+    const sh = shape.height * h;
+    const halfW = sw / 2;
+    const halfH = sh / 2;
+
+    ctx.strokeStyle = shape.color;
+    ctx.lineWidth = shape.strokeWidth;
+    ctx.fillStyle = shape.fillColor;
+
+    if (shape.type === "rectangle") {
+      ctx.beginPath();
+      ctx.rect(cx - halfW, cy - halfH, sw, sh);
+      if (shape.fillColor !== "transparent") ctx.fill();
+      ctx.stroke();
+    } else if (shape.type === "circle") {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, halfW, halfH, 0, 0, Math.PI * 2);
+      if (shape.fillColor !== "transparent") ctx.fill();
+      ctx.stroke();
+    } else if (shape.type === "text") {
+      const size = Math.round(shape.fontSize * (h / 720));
+      ctx.font = `bold ${size}px sans-serif`;
+      ctx.fillStyle = shape.color;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      // Bounding box for text wrapping
+      const maxW = sw > 10 ? sw : w * 0.3;
+      const maxH = sh > 10 ? sh : h * 0.15;
+      const tx = cx - maxW / 2;
+      const ty = cy - maxH / 2;
+
+      // Word-wrap the text into lines
+      const words = shape.text.split(" ");
+      const lines: string[] = [];
+      let currentLine = "";
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + " " + word : word;
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxW && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+
+      // Draw lines, clipped to bounding box
+      const lineHeight = size * 1.3;
+      const maxLines = Math.floor(maxH / lineHeight);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(tx, ty, maxW, maxH);
+      ctx.clip();
+      for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+        ctx.fillText(lines[i], tx, ty + i * lineHeight);
+      }
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+}
+
 // ── Output dimensions ─────────────────────────────────────────────────────────
 
 function getOutputSize(
@@ -293,6 +371,12 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
       (s) => s.startTime <= frameTime && frameTime < s.endTime
     );
     if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
+
+    // Composite shape annotations
+    const visibleShapes = job.shapes.filter(
+      (s) => s.startTime <= frameTime && frameTime < s.endTime
+    );
+    if (visibleShapes.length > 0) drawShapes(ctx, visibleShapes, outW, outH);
 
     // Composite sticker / text overlays
     const visibleOverlays = overlays.filter(
