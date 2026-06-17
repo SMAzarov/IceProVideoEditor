@@ -6,6 +6,7 @@ export interface PlaybackState {
     isPlaying: boolean;
     fps: number;
     playbackRate: number;
+    muted: boolean;
     trimScrub: TrimScrub | null;
 }
 export interface PlaybackActions {
@@ -13,6 +14,8 @@ export interface PlaybackActions {
     togglePlay: () => void;
     setFps: (fps: number) => void;
     setPlaybackRate: (rate: number) => void;
+    setMuted: (muted: boolean) => void;
+    toggleMuted: () => void;
     setTrimScrub: (scrub: TrimScrub | null) => void;
 }
 export declare const createPlaybackSlice: (set: (fn: (state: PlaybackState & PlaybackActions) => Partial<PlaybackState & PlaybackActions>) => void) => PlaybackState & PlaybackActions;
