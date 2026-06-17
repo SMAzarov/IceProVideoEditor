@@ -1,0 +1,256 @@
+@import "tailwindcss";
+
+/* ── Dark theme (default) ── */
+[data-kt-theme="dark"] {
+  --kt-bg-base: #1c1c1c;
+  --kt-bg-panel: #1a1a1a;
+  --kt-bg-surface: #18181b;
+  --kt-bg-deep: #09090b;
+  --kt-bg-preview: #18181b;
+  --kt-bg-overlay: rgba(0, 0, 0, 0.7);
+
+  --kt-bg-subtle: rgba(255, 255, 255, 0.05);
+  --kt-bg-subtle-hover: rgba(255, 255, 255, 0.1);
+  --kt-bg-subtle-active: rgba(255, 255, 255, 0.15);
+
+  --kt-border: rgba(255, 255, 255, 0.06);
+  --kt-border-strong: #27272a;
+  --kt-border-input: rgba(255, 255, 255, 0.1);
+
+  --kt-text-primary: #ffffff;
+  --kt-text-secondary: #d4d4d8;
+  --kt-text-tertiary: #a1a1aa;
+  --kt-text-muted: #71717a;
+  --kt-text-faint: #52525b;
+
+  --kt-accent: #fbbf24;
+  --kt-accent-hover: #fcd34d;
+  --kt-accent-text: #18181b;
+  --kt-accent-subtle-bg: rgba(251, 191, 36, 0.15);
+  --kt-accent-subtle-border: rgba(251, 191, 36, 0.4);
+  --kt-accent-strong-border: rgba(251, 191, 36, 0.9);
+
+  --kt-accent-play: #7c3aed;
+  --kt-accent-play-hover: #8b5cf6;
+  --kt-accent-play-bar: #8b5cf6;
+
+  --kt-success-bg: rgba(16, 185, 129, 0.2);
+  --kt-success: #34d399;
+  --kt-success-btn: #10b981;
+  --kt-success-btn-hover: #34d399;
+
+  --kt-danger: rgba(248, 113, 113, 0.8);
+  --kt-danger-hover: #f87171;
+  --kt-danger-btn: #ef4444;
+
+  --kt-scrollbar-thumb: #3f3f46;
+  --kt-scrollbar-thumb-hover: #52525b;
+
+  --kt-slider-track: #3f3f46;
+  --kt-slider-fill: rgba(255, 255, 255, 0.6);
+  --kt-slider-thumb: #ffffff;
+
+  --kt-badge-bg: rgba(0, 0, 0, 0.6);
+  --kt-badge-text: #ffffff;
+  --kt-import-btn-bg: rgba(255, 255, 255, 0.07);
+  --kt-import-btn-hover: rgba(255, 255, 255, 0.12);
+  --kt-cancel-btn-bg: #3f3f46;
+  --kt-cancel-btn-hover: #52525b;
+  --kt-cancel-btn-text: #e4e4e7;
+  --kt-spinner-border: #52525b;
+  --kt-spinner-top: #a1a1aa;
+  --kt-dimmed-thumb: 0.4;
+  --kt-crop-mask: rgba(0, 0, 0, 0.55);
+  --kt-time-badge-bg: #18181b;
+  --kt-time-badge-border: rgba(255, 255, 255, 0.2);
+  --kt-tick-major: #71717a;
+  --kt-tick-minor: #3f3f46;
+}
+
+/* ── Light theme ── */
+[data-kt-theme="light"] {
+  --kt-bg-base: #f4f4f5;
+  --kt-bg-panel: #ffffff;
+  --kt-bg-surface: #e4e4e7;
+  --kt-bg-deep: #fafafa;
+  --kt-bg-preview: #e4e4e7;
+  --kt-bg-overlay: rgba(255, 255, 255, 0.8);
+
+  --kt-bg-subtle: rgba(0, 0, 0, 0.04);
+  --kt-bg-subtle-hover: rgba(0, 0, 0, 0.08);
+  --kt-bg-subtle-active: rgba(0, 0, 0, 0.12);
+
+  --kt-border: rgba(0, 0, 0, 0.08);
+  --kt-border-strong: #d4d4d8;
+  --kt-border-input: rgba(0, 0, 0, 0.12);
+
+  --kt-text-primary: #18181b;
+  --kt-text-secondary: #3f3f46;
+  --kt-text-tertiary: #52525b;
+  --kt-text-muted: #71717a;
+  --kt-text-faint: #a1a1aa;
+
+  --kt-accent: #f59e0b;
+  --kt-accent-hover: #d97706;
+  --kt-accent-text: #ffffff;
+  --kt-accent-subtle-bg: rgba(245, 158, 11, 0.12);
+  --kt-accent-subtle-border: rgba(245, 158, 11, 0.35);
+  --kt-accent-strong-border: rgba(245, 158, 11, 0.8);
+
+  --kt-accent-play: #7c3aed;
+  --kt-accent-play-hover: #6d28d9;
+  --kt-accent-play-bar: #7c3aed;
+
+  --kt-success-bg: rgba(16, 185, 129, 0.12);
+  --kt-success: #059669;
+  --kt-success-btn: #10b981;
+  --kt-success-btn-hover: #059669;
+
+  --kt-danger: rgba(220, 38, 38, 0.7);
+  --kt-danger-hover: #dc2626;
+  --kt-danger-btn: #ef4444;
+
+  --kt-scrollbar-thumb: #a1a1aa;
+  --kt-scrollbar-thumb-hover: #71717a;
+
+  --kt-slider-track: #d4d4d8;
+  --kt-slider-fill: rgba(0, 0, 0, 0.4);
+  --kt-slider-thumb: #18181b;
+
+  --kt-badge-bg: rgba(255, 255, 255, 0.7);
+  --kt-badge-text: #18181b;
+  --kt-import-btn-bg: rgba(0, 0, 0, 0.05);
+  --kt-import-btn-hover: rgba(0, 0, 0, 0.1);
+  --kt-cancel-btn-bg: #d4d4d8;
+  --kt-cancel-btn-hover: #a1a1aa;
+  --kt-cancel-btn-text: #27272a;
+  --kt-spinner-border: #a1a1aa;
+  --kt-spinner-top: #52525b;
+  --kt-dimmed-thumb: 0.6;
+  --kt-crop-mask: rgba(255, 255, 255, 0.55);
+  --kt-time-badge-bg: #ffffff;
+  --kt-time-badge-border: rgba(0, 0, 0, 0.15);
+  --kt-tick-major: #71717a;
+  --kt-tick-minor: #d4d4d8;
+}
+
+/* ── Scrollbar ── */
+.kutlass-editor ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.kutlass-editor ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kutlass-editor ::-webkit-scrollbar-thumb {
+  background: var(--kt-scrollbar-thumb);
+  border-radius: 3px;
+}
+.kutlass-editor ::-webkit-scrollbar-thumb:hover {
+  background: var(--kt-scrollbar-thumb-hover);
+}
+
+/* Range input reset */
+.kutlass-editor input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+/* ── Reusable interactive classes ── */
+.kt-btn-ghost {
+  color: var(--kt-text-tertiary);
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.kt-btn-ghost:hover {
+  color: var(--kt-text-primary);
+  background: var(--kt-bg-subtle-hover);
+}
+.kt-btn-ghost:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.kt-btn-subtle {
+  color: var(--kt-text-secondary);
+  background: var(--kt-bg-subtle);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.kt-btn-subtle:hover {
+  color: var(--kt-text-primary);
+  background: var(--kt-bg-subtle-hover);
+}
+
+.kt-btn-accent {
+  color: var(--kt-accent-text);
+  background: var(--kt-accent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.kt-btn-accent:hover {
+  background: var(--kt-accent-hover);
+}
+.kt-btn-accent:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.kt-btn-import {
+  color: var(--kt-text-secondary);
+  background: var(--kt-import-btn-bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.kt-btn-import:hover {
+  background: var(--kt-import-btn-hover);
+}
+
+.kt-btn-cancel {
+  color: var(--kt-cancel-btn-text);
+  background: var(--kt-cancel-btn-bg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.kt-btn-cancel:hover {
+  background: var(--kt-cancel-btn-hover);
+}
+
+.kt-tool-btn {
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+.kt-tool-btn:hover {
+  color: var(--kt-text-primary) !important;
+  background-color: var(--kt-bg-subtle-hover) !important;
+}
+
+.kt-chip {
+  color: var(--kt-text-tertiary);
+  background: var(--kt-bg-subtle);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.kt-chip:hover {
+  background: var(--kt-bg-subtle-hover);
+}
+.kt-chip-active {
+  color: var(--kt-accent);
+  background: var(--kt-accent-subtle-bg);
+  border: 1px solid var(--kt-accent-subtle-border);
+  cursor: pointer;
+}
+.kt-chip-active:hover {
+  background: var(--kt-accent-subtle-bg);
+}
+
+.kt-emoji-btn {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.kt-emoji-btn:hover {
+  background: var(--kt-bg-subtle-hover);
+}

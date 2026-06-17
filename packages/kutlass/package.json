@@ -1,0 +1,67 @@
+{
+  "name": "kutlass",
+  "version": "0.1.7",
+  "description": "A fully client-side browser video editor React component",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./styles.css": "./dist/kutlass.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.lib.json && npx @tailwindcss/cli -i src/kutlass.css -o dist/kutlass.css --minify",
+    "test": "vitest run",
+    "lint": "eslint"
+  },
+  "peerDependencies": {
+    "@ffmpeg/core": "^0.12.0",
+    "@ffmpeg/ffmpeg": "^0.12.0",
+    "@ffmpeg/util": "^0.12.0",
+    "framer-motion": ">=10",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "framer-motion": {
+      "optional": false
+    },
+    "@ffmpeg/core": {
+      "optional": false
+    },
+    "@ffmpeg/ffmpeg": {
+      "optional": false
+    },
+    "@ffmpeg/util": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "nanoid": "^5.1.7",
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "@tldraw/tldraw": "^4.5.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "mp4box": "^2.3.0",
+    "tailwindcss": "^4",
+    "tsup": "^8.5.1",
+    "typescript": "^5",
+    "vitest": "^2.1.8",
+    "zundo": "^2.3.0"
+  }
+}
