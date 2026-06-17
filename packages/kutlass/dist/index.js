@@ -1717,7 +1717,14 @@ function TopBar() {
           )
         ] }, menu.id)),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex-1" }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mr-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mr-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium flex items-center gap-1 mr-1", style: { color: "var(--kt-text-muted)" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "11", cy: "11", r: "7" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M16.5 16.5L21 21" })
+            ] }),
+            "Zoom"
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             "button",
             {
@@ -1739,7 +1746,14 @@ function TopBar() {
             }
           )
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-3", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium flex items-center gap-1 mr-1", style: { color: "var(--kt-text-muted)" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M12 6v6l4 2" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "12", cy: "12", r: "9" })
+            ] }),
+            "Speed"
+          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
             "button",
             {
@@ -4848,19 +4862,22 @@ function StickerPanel() {
               "s"
             ] })
           ] }),
-          STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "mb-2", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider block mb-1", style: { color: "var(--kt-text-faint)" }, children: group.label }),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex flex-wrap gap-1", children: group.emojis.map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex flex-wrap items-center gap-x-3 gap-y-1", children: STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex items-center shrink-0 gap-1", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-faint)" }, children: [
+              group.label,
+              ":"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex gap-0.5", children: group.emojis.map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               "button",
               {
                 onClick: () => handleAddEmoji(emoji),
-                className: "w-8 h-8 flex items-center justify-center rounded kt-emoji-btn transition-colors text-lg",
+                className: "w-9 h-9 flex items-center justify-center rounded kt-emoji-btn transition-colors text-xl",
                 title: `Add ${emoji}`,
                 children: emoji
               },
               emoji
             )) })
-          ] }, group.label))
+          ] }, group.label)) })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "hidden md:flex w-36 shrink-0 flex-col gap-1.5", children: [
           /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [

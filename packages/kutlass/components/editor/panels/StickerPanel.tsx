@@ -106,25 +106,27 @@ export function StickerPanel() {
             </span>
           </div>
 
-          {STICKER_GROUPS.map((group) => (
-            <div key={group.label} className="mb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider block mb-1" style={{ color: "var(--kt-text-faint)" }}>
-                {group.label}
-              </span>
-              <div className="flex flex-wrap gap-1">
-                {group.emojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleAddEmoji(emoji)}
-                    className="w-8 h-8 flex items-center justify-center rounded kt-emoji-btn transition-colors text-lg"
-                    title={`Add ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {STICKER_GROUPS.map((group) => (
+              <div key={group.label} className="flex items-center shrink-0 gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--kt-text-faint)" }}>
+                  {group.label}:
+                </span>
+                <div className="flex gap-0.5">
+                  {group.emojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleAddEmoji(emoji)}
+                      className="w-9 h-9 flex items-center justify-center rounded kt-emoji-btn transition-colors text-xl"
+                      title={`Add ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Active stickers — hidden on mobile */}

@@ -197,7 +197,14 @@ export function TopBar() {
       <div className="flex-1" />
 
       {/* ── Zoom ── */}
-      <div className="hidden md:flex items-center gap-1 mr-2">
+      <div className="hidden md:flex items-center gap-1 mr-3">
+        <span className="text-xs font-medium flex items-center gap-1 mr-1" style={{ color: "var(--kt-text-muted)" }}>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <path strokeLinecap="round" d="M16.5 16.5L21 21" />
+          </svg>
+          Zoom
+        </span>
         <button
           onClick={() => setZoom(zoom / 1.25)}
           className="kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none"
@@ -216,7 +223,14 @@ export function TopBar() {
       </div>
 
       {/* ── Speed ── */}
-      <div className="flex items-center gap-1 mr-2">
+      <div className="flex items-center gap-1 mr-3">
+        <span className="text-xs font-medium flex items-center gap-1 mr-1" style={{ color: "var(--kt-text-muted)" }}>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" d="M12 6v6l4 2" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          Speed
+        </span>
         <button
           onClick={() => setPlaybackRate(Math.max(0, playbackRate - 0.25))}
           className="kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none"
