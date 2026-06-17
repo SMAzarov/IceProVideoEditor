@@ -1,1 +1,1 @@
-{"version":3,"file":"ShapeOverlay.d.ts","sourceRoot":"","sources":["../../../../components/editor/preview/ShapeOverlay.tsx"],"names":[],"mappings":"AAOA,UAAU,iBAAiB;IACzB,QAAQ,EAAE,OAAO,CAAC;CACnB;AA4BD,wBAAgB,YAAY,CAAC,EAAE,QAAQ,EAAE,EAAE,iBAAiB,+BAyM3D"}
+{"version":3,"file":"ShapeOverlay.d.ts","sourceRoot":"","sources":["../../../../components/editor/preview/ShapeOverlay.tsx"],"names":[],"mappings":"AAOA,UAAU,iBAAiB;IACzB,QAAQ,EAAE,OAAO,CAAC;CACnB;AAqED,wBAAgB,YAAY,CAAC,EAAE,QAAQ,EAAE,EAAE,iBAAiB,+BAgV3D"}

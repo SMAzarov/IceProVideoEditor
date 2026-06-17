@@ -46,32 +46,46 @@ export function drawShapesOnCtx(
         const x = cx - halfW;
         const y = cy - halfH;
 
-        // Shadow
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.25)";
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 3;
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
-        drawDogEar(ctx, x, y, sw, sh, fold);
-        ctx.fill();
-        ctx.restore();
+        // Build the note path (rounded rect with dog-ear)
+        const notePath = () => {
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + sw - fold - r, y);
+          ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
+          ctx.lineTo(x + sw, y + fold + r);
+          ctx.lineTo(x + sw, y + sh - r);
+          ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
+          ctx.lineTo(x + r, y + sh);
+          ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.closePath();
+        };
 
-        // Main shape
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + sw - fold - r, y);
-        ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
-        ctx.lineTo(x + sw, y + fold + r);
-        ctx.lineTo(x + sw, y + sh - r);
-        ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
-        ctx.lineTo(x + r, y + sh);
-        ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
+        // Shadow (only if fill is visible)
+        if (shape.fillColor !== "transparent") {
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.25)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = shape.fillColor;
+          notePath();
+          ctx.fill();
+          ctx.restore();
+        }
 
-        // Fold line
+        // Main shape: fill + stroke on the same path
+        notePath();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
+
+        // Fold line (drawn on top)
         ctx.save();
         ctx.strokeStyle = "rgba(0,0,0,0.1)";
         ctx.lineWidth = 1;
@@ -80,12 +94,6 @@ export function drawShapesOnCtx(
         ctx.lineTo(x + sw, y + fold);
         ctx.stroke();
         ctx.restore();
-
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
-        ctx.fill();
-        ctx.strokeStyle = shape.color;
-        ctx.lineWidth = shape.strokeWidth;
-        ctx.stroke();
       } else if (style === "sticky") {
         // Sticky note: yellow background, shadow, slightly rotated
         const x = cx - halfW;
@@ -98,14 +106,16 @@ export function drawShapesOnCtx(
         ctx.translate(-cx, -cy);
 
         // Shadow
-        ctx.shadowColor = "rgba(0,0,0,0.2)";
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 3;
-        ctx.shadowOffsetY = 4;
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
-        ctx.beginPath();
-        ctx.roundRect(x, y, sw, sh, 4);
-        ctx.fill();
+        if (shape.fillColor !== "transparent") {
+          ctx.shadowColor = "rgba(0,0,0,0.2)";
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 4;
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
         ctx.restore();
 
         // Main sticky
@@ -113,10 +123,12 @@ export function drawShapesOnCtx(
         ctx.translate(cx, cy);
         ctx.rotate(angle);
         ctx.translate(-cx, -cy);
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
-        ctx.beginPath();
-        ctx.roundRect(x, y, sw, sh, 4);
-        ctx.fill();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
         ctx.strokeStyle = shape.color;
         ctx.lineWidth = shape.strokeWidth;
         ctx.stroke();
@@ -192,7 +204,7 @@ export function drawShapesOnCtx(
     if (shape.type === "rectangle") {
       drawPath(() => {
         ctx.beginPath();
-        ctx.rect(cx - halfW, cy - halfH, sw, sh);
+        ctx.roundRect(cx - halfW, cy - halfH, sw, sh, 6);
       });
     } else if (shape.type === "circle") {
       drawPath(() => {

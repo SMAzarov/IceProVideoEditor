@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useEditorStore } from "@/store/editorStore";
 
 const STICKER_GROUPS = [
@@ -29,8 +29,25 @@ export function StickerPanel() {
   const stickerDuration = useEditorStore((s) => s.stickerDuration);
   const setStickerDuration = useEditorStore((s) => s.setStickerDuration);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const durationInputRef = useRef<HTMLInputElement>(null);
+  const [editingDuration, setEditingDuration] = useState(false);
+  const [durationDraft, setDurationDraft] = useState("");
 
   const stickerOverlays = overlays.filter((o) => o.type === "sticker");
+
+  const commitDuration = useCallback(() => {
+    const val = parseFloat(durationDraft);
+    if (!isNaN(val)) {
+      setStickerDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDuration(false);
+  }, [durationDraft, setStickerDuration]);
+
+  const startEditing = useCallback(() => {
+    setDurationDraft(stickerDuration.toFixed(2));
+    setEditingDuration(true);
+    requestAnimationFrame(() => durationInputRef.current?.select());
+  }, [stickerDuration]);
 
   const handleAddEmoji = (emoji: string) => {
     addStickerOverlay({ emoji, x: 0.5, y: 0.5, scale: 1 });
@@ -90,9 +107,9 @@ export function StickerPanel() {
             </span>
             <input
               type="range"
-              min={0.5}
+              min={0.25}
               max={10}
-              step={0.5}
+              step={0.25}
               value={stickerDuration}
               onChange={(e) => setStickerDuration(parseFloat(e.target.value))}
               className="w-16 h-1.5 rounded-full appearance-none cursor-pointer"
@@ -101,9 +118,39 @@ export function StickerPanel() {
                 accentColor: "var(--kt-accent)",
               }}
             />
-            <span className="text-xs tabular-nums" style={{ color: "var(--kt-text-secondary)", minWidth: 28 }}>
-              {stickerDuration.toFixed(1)}s
-            </span>
+            {editingDuration ? (
+              <input
+                ref={durationInputRef}
+                type="number"
+                min={0.25}
+                max={30}
+                step={0.25}
+                value={durationDraft}
+                onChange={(e) => setDurationDraft(e.target.value)}
+                onBlur={commitDuration}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitDuration();
+                  if (e.key === "Escape") setEditingDuration(false);
+                }}
+                className="w-14 h-6 px-1 rounded text-xs tabular-nums text-center border"
+                style={{
+                  color: "var(--kt-text-primary)",
+                  background: "var(--kt-bg-input)",
+                  borderColor: "var(--kt-accent)",
+                  outline: "none",
+                }}
+                autoFocus
+              />
+            ) : (
+              <button
+                onClick={startEditing}
+                className="text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left"
+                style={{ color: "var(--kt-text-secondary)" }}
+                title="Click to edit"
+              >
+                {stickerDuration.toFixed(1)}s
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

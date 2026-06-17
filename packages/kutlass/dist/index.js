@@ -55,10 +55,10 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // src/Kutlass.tsx
-var import_react16 = require("react");
+var import_react17 = require("react");
 
 // components/editor/Editor.tsx
-var import_react15 = require("react");
+var import_react16 = require("react");
 var import_framer_motion3 = require("framer-motion");
 
 // components/editor/TopBar.tsx
@@ -2668,15 +2668,6 @@ var import_react8 = require("react");
 
 // lib/webcodecs/PreviewEngine.ts
 var renderer = new FrameRenderer();
-function drawDogEar(ctx, x, y, w, h, foldSize) {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + w - foldSize, y);
-  ctx.lineTo(x + w, y + foldSize);
-  ctx.lineTo(x + w, y + h);
-  ctx.lineTo(x, y + h);
-  ctx.closePath();
-}
 function drawShapesOnCtx(ctx, shapes, w, h) {
   for (const shape of shapes) {
     ctx.save();
@@ -2693,27 +2684,39 @@ function drawShapesOnCtx(ctx, shapes, w, h) {
         const fold = Math.min(24, sw * 0.15, sh * 0.15);
         const x = cx - halfW;
         const y = cy - halfH;
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.25)";
-        ctx.shadowBlur = 8;
-        ctx.shadowOffsetX = 2;
-        ctx.shadowOffsetY = 3;
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
-        drawDogEar(ctx, x, y, sw, sh, fold);
-        ctx.fill();
-        ctx.restore();
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + sw - fold - r, y);
-        ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
-        ctx.lineTo(x + sw, y + fold + r);
-        ctx.lineTo(x + sw, y + sh - r);
-        ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
-        ctx.lineTo(x + r, y + sh);
-        ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
+        const notePath = () => {
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.lineTo(x + sw - fold - r, y);
+          ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
+          ctx.lineTo(x + sw, y + fold + r);
+          ctx.lineTo(x + sw, y + sh - r);
+          ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
+          ctx.lineTo(x + r, y + sh);
+          ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
+          ctx.lineTo(x, y + r);
+          ctx.quadraticCurveTo(x, y, x + r, y);
+          ctx.closePath();
+        };
+        if (shape.fillColor !== "transparent") {
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.25)";
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = shape.fillColor;
+          notePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        notePath();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.fill();
+        }
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
         ctx.save();
         ctx.strokeStyle = "rgba(0,0,0,0.1)";
         ctx.lineWidth = 1;
@@ -2722,11 +2725,6 @@ function drawShapesOnCtx(ctx, shapes, w, h) {
         ctx.lineTo(x + sw, y + fold);
         ctx.stroke();
         ctx.restore();
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
-        ctx.fill();
-        ctx.strokeStyle = shape.color;
-        ctx.lineWidth = shape.strokeWidth;
-        ctx.stroke();
       } else if (style === "sticky") {
         const x = cx - halfW;
         const y = cy - halfH;
@@ -2735,23 +2733,27 @@ function drawShapesOnCtx(ctx, shapes, w, h) {
         ctx.translate(cx, cy);
         ctx.rotate(angle);
         ctx.translate(-cx, -cy);
-        ctx.shadowColor = "rgba(0,0,0,0.2)";
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetX = 3;
-        ctx.shadowOffsetY = 4;
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
-        ctx.beginPath();
-        ctx.roundRect(x, y, sw, sh, 4);
-        ctx.fill();
+        if (shape.fillColor !== "transparent") {
+          ctx.shadowColor = "rgba(0,0,0,0.2)";
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 4;
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
         ctx.restore();
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(angle);
         ctx.translate(-cx, -cy);
-        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
-        ctx.beginPath();
-        ctx.roundRect(x, y, sw, sh, 4);
-        ctx.fill();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.roundRect(x, y, sw, sh, 4);
+          ctx.fill();
+        }
         ctx.strokeStyle = shape.color;
         ctx.lineWidth = shape.strokeWidth;
         ctx.stroke();
@@ -2814,7 +2816,7 @@ function drawShapesOnCtx(ctx, shapes, w, h) {
     if (shape.type === "rectangle") {
       drawPath(() => {
         ctx.beginPath();
-        ctx.rect(cx - halfW, cy - halfH, sw, sh);
+        ctx.roundRect(cx - halfW, cy - halfH, sw, sh, 6);
       });
     } else if (shape.type === "circle") {
       drawPath(() => {
@@ -2887,6 +2889,8 @@ async function renderPreview(canvas, clips, currentTime, effectsMap, skipCrop = 
 
 // components/editor/preview/ShapeOverlay.tsx
 var import_jsx_runtime7 = require("react/jsx-runtime");
+var HANDLE_SIZE = 8;
+var HANDLE_HALF = HANDLE_SIZE / 2;
 function hitTest(px, py, shape) {
   const w = shape.width > 0 ? shape.width : 0.2;
   const h = shape.height > 0 ? shape.height : 0.1;
@@ -2906,9 +2910,39 @@ function hitTest(px, py, shape) {
   }
   return false;
 }
+function getShapeBounds(shape) {
+  const w = shape.width > 0 ? shape.width : 0.2;
+  const h = shape.height > 0 ? shape.height : 0.1;
+  return {
+    left: shape.x - w / 2,
+    right: shape.x + w / 2,
+    top: shape.y - h / 2,
+    bottom: shape.y + h / 2,
+    w,
+    h
+  };
+}
+function hitCorner(px, py, shape, canvasW, canvasH) {
+  const b = getShapeBounds(shape);
+  const corners = [
+    { key: "tl", nx: b.left, ny: b.top },
+    { key: "tr", nx: b.right, ny: b.top },
+    { key: "bl", nx: b.left, ny: b.bottom },
+    { key: "br", nx: b.right, ny: b.bottom }
+  ];
+  const threshold = HANDLE_SIZE / Math.min(canvasW, canvasH);
+  for (const c of corners) {
+    if (Math.abs(px - c.nx) < threshold && Math.abs(py - c.ny) < threshold) {
+      return c.key;
+    }
+  }
+  return null;
+}
 function ShapeOverlay({ isActive }) {
   const canvasRef = (0, import_react8.useRef)(null);
+  const [hoveredCorner, setHoveredCorner] = (0, import_react8.useState)(null);
   const draggingRef = (0, import_react8.useRef)(null);
+  const resizeRef = (0, import_react8.useRef)(null);
   const annotateMode = useEditorStore((s) => s.annotateMode);
   const selectedShapeId = useEditorStore((s) => s.selectedShapeId);
   const selectShape = useEditorStore((s) => s.selectShape);
@@ -2935,40 +2969,26 @@ function ShapeOverlay({ isActive }) {
         const halfW = sw / 2;
         const halfH = sh / 2;
         ctx.save();
-        if (selected.style === "neon") {
-          ctx.shadowColor = "#00aaff";
-          ctx.shadowBlur = 12;
-          ctx.strokeStyle = "#00aaff";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 4]);
-          ctx.strokeRect(cx - halfW - 6, cy - halfH - 6, sw + 12, sh + 12);
-        } else if (selected.style === "note" || selected.style === "sticky") {
-          ctx.strokeStyle = "#00aaff";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 4]);
-          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
-          const handleSize = 6;
-          ctx.fillStyle = "#00aaff";
-          [
-            [cx - halfW - 4, cy - halfH - 4],
-            [cx + halfW + 4, cy - halfH - 4],
-            [cx - halfW - 4, cy + halfH + 4],
-            [cx + halfW + 4, cy + halfH + 4]
-          ].forEach(([hx, hy]) => {
-            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
-          });
-        } else {
-          ctx.strokeStyle = "#00aaff";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([6, 4]);
-          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
-        }
+        ctx.strokeStyle = "#00aaff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        ctx.fillStyle = "#00aaff";
+        const corners = [
+          [cx - halfW - 4, cy - halfH - 4],
+          [cx + halfW + 4, cy - halfH - 4],
+          [cx - halfW - 4, cy + halfH + 4],
+          [cx + halfW + 4, cy + halfH + 4]
+        ];
+        corners.forEach(([hx, hy]) => {
+          ctx.fillRect(hx - HANDLE_HALF, hy - HANDLE_HALF, HANDLE_SIZE, HANDLE_SIZE);
+        });
         ctx.restore();
       }
     };
     render();
     const unsub = useEditorStore.subscribe(() => {
-      if (!draggingRef.current) render();
+      if (!draggingRef.current && !resizeRef.current) render();
     });
     return unsub;
   }, [selectedShapeId]);
@@ -2980,14 +3000,34 @@ function ShapeOverlay({ isActive }) {
       y: (e.clientY - rect.top) / rect.height
     };
   }, []);
+  const getCanvasSize = (0, import_react8.useCallback)(() => {
+    const canvas = canvasRef.current;
+    return { cw: canvas.width, ch: canvas.height };
+  }, []);
   const onPointerDown = (0, import_react8.useCallback)(
     (e) => {
       if (!isShapeMode) return;
       const pt = getRelative(e);
+      const { cw, ch } = getCanvasSize();
       const { shapes, currentTime } = useEditorStore.getState();
       const visible = shapes.filter(
         (s) => s.startTime <= currentTime && currentTime < s.endTime
       );
+      const selected = visible.find((s) => s.id === selectedShapeId);
+      if (selected) {
+        const corner = hitCorner(pt.x, pt.y, selected, cw, ch);
+        if (corner) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          resizeRef.current = {
+            shapeId: selected.id,
+            corner,
+            startPx: pt.x,
+            startPy: pt.y,
+            origBounds: getShapeBounds(selected)
+          };
+          return;
+        }
+      }
       let hit = null;
       for (let i = visible.length - 1; i >= 0; i--) {
         if (hitTest(pt.x, pt.y, visible[i])) {
@@ -3009,51 +3049,149 @@ function ShapeOverlay({ isActive }) {
         selectShape(null);
       }
     },
-    [isShapeMode, getRelative, selectShape]
+    [isShapeMode, getRelative, getCanvasSize, selectedShapeId, selectShape]
   );
   const onPointerMove = (0, import_react8.useCallback)(
     (e) => {
-      if (!draggingRef.current) return;
       const pt = getRelative(e);
-      const dx = pt.x - draggingRef.current.startX;
-      const dy = pt.y - draggingRef.current.startY;
-      const newX = Math.max(0, Math.min(1, draggingRef.current.origX + dx));
-      const newY = Math.max(0, Math.min(1, draggingRef.current.origY + dy));
-      updateShape(draggingRef.current.shapeId, { x: newX, y: newY });
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const { shapes, currentTime } = useEditorStore.getState();
-      const visible = shapes.filter(
-        (s) => s.startTime <= currentTime && currentTime < s.endTime
-      );
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
-      const selected = visible.find((s) => s.id === draggingRef.current.shapeId);
-      if (selected) {
-        const cx = selected.x * canvas.width;
-        const cy = selected.y * canvas.height;
-        const sw = selected.width * canvas.width;
-        const sh = selected.height * canvas.height;
-        const halfW = sw / 2;
-        const halfH = sh / 2;
-        ctx.save();
-        ctx.strokeStyle = "#00aaff";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
-        ctx.restore();
+      const { cw, ch } = getCanvasSize();
+      if (resizeRef.current) {
+        const r = resizeRef.current;
+        const dx = pt.x - r.startPx;
+        const dy = pt.y - r.startPy;
+        let newLeft = r.origBounds.left;
+        let newRight = r.origBounds.right;
+        let newTop = r.origBounds.top;
+        let newBottom = r.origBounds.bottom;
+        switch (r.corner) {
+          case "tl":
+            newLeft = r.origBounds.left + dx;
+            newTop = r.origBounds.top + dy;
+            break;
+          case "tr":
+            newRight = r.origBounds.right + dx;
+            newTop = r.origBounds.top + dy;
+            break;
+          case "bl":
+            newLeft = r.origBounds.left + dx;
+            newBottom = r.origBounds.bottom + dy;
+            break;
+          case "br":
+            newRight = r.origBounds.right + dx;
+            newBottom = r.origBounds.bottom + dy;
+            break;
+        }
+        const MIN_SIZE = 0.02;
+        let left = Math.max(0, Math.min(newLeft, newRight - MIN_SIZE));
+        let right = Math.min(1, Math.max(newRight, left + MIN_SIZE));
+        let top = Math.max(0, Math.min(newTop, newBottom - MIN_SIZE));
+        let bottom = Math.min(1, Math.max(newBottom, top + MIN_SIZE));
+        const newW = right - left;
+        const newH = bottom - top;
+        const newX = left + newW / 2;
+        const newY = top + newH / 2;
+        updateShape(r.shapeId, { x: newX, y: newY, width: newW, height: newH });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { shapes, currentTime } = useEditorStore.getState();
+        const visible = shapes.filter(
+          (s) => s.startTime <= currentTime && currentTime < s.endTime
+        );
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
+        const sel = visible.find((s) => s.id === r.shapeId);
+        if (sel) {
+          const cx = sel.x * canvas.width;
+          const cy = sel.y * canvas.height;
+          const sw = sel.width * canvas.width;
+          const sh = sel.height * canvas.height;
+          const halfW = sw / 2;
+          const halfH = sh / 2;
+          ctx.save();
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          ctx.fillStyle = "#00aaff";
+          const corners = [
+            [cx - halfW - 4, cy - halfH - 4],
+            [cx + halfW + 4, cy - halfH - 4],
+            [cx - halfW - 4, cy + halfH + 4],
+            [cx + halfW + 4, cy + halfH + 4]
+          ];
+          corners.forEach(([hx, hy]) => {
+            ctx.fillRect(hx - HANDLE_HALF, hy - HANDLE_HALF, HANDLE_SIZE, HANDLE_SIZE);
+          });
+          ctx.restore();
+        }
+        return;
+      }
+      if (draggingRef.current) {
+        const dx = pt.x - draggingRef.current.startX;
+        const dy = pt.y - draggingRef.current.startY;
+        const newX = Math.max(0, Math.min(1, draggingRef.current.origX + dx));
+        const newY = Math.max(0, Math.min(1, draggingRef.current.origY + dy));
+        updateShape(draggingRef.current.shapeId, { x: newX, y: newY });
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const { shapes, currentTime } = useEditorStore.getState();
+        const visible = shapes.filter(
+          (s) => s.startTime <= currentTime && currentTime < s.endTime
+        );
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawShapesOnCtx(ctx, visible, canvas.width, canvas.height);
+        const sel = visible.find((s) => s.id === draggingRef.current.shapeId);
+        if (sel) {
+          const cx = sel.x * canvas.width;
+          const cy = sel.y * canvas.height;
+          const sw = sel.width * canvas.width;
+          const sh = sel.height * canvas.height;
+          const halfW = sw / 2;
+          const halfH = sh / 2;
+          ctx.save();
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          ctx.restore();
+        }
+        return;
+      }
+      if (isShapeMode && selectedShapeId) {
+        const { shapes, currentTime } = useEditorStore.getState();
+        const sel = shapes.find(
+          (s) => s.id === selectedShapeId && s.startTime <= currentTime && currentTime < s.endTime
+        );
+        if (sel) {
+          const corner = hitCorner(pt.x, pt.y, sel, cw, ch);
+          setHoveredCorner(corner);
+        } else {
+          setHoveredCorner(null);
+        }
+      } else {
+        setHoveredCorner(null);
       }
     },
-    [getRelative, updateShape]
+    [getRelative, getCanvasSize, isShapeMode, selectedShapeId, updateShape]
   );
   const onPointerUp = (0, import_react8.useCallback)(() => {
-    if (draggingRef.current) {
+    if (draggingRef.current || resizeRef.current) {
       useEditorStore.getState().setCurrentTime(useEditorStore.getState().currentTime);
     }
     draggingRef.current = null;
+    resizeRef.current = null;
   }, []);
+  let cursor = "default";
+  if (isShapeMode) {
+    if (hoveredCorner === "tl" || hoveredCorner === "br") cursor = "nwse-resize";
+    else if (hoveredCorner === "tr" || hoveredCorner === "bl") cursor = "nesw-resize";
+    else if (selectedShapeId) cursor = "move";
+    else cursor = "pointer";
+  }
   return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
     "canvas",
     {
@@ -3063,7 +3201,7 @@ function ShapeOverlay({ isActive }) {
       className: "absolute inset-0 w-full h-full",
       style: {
         zIndex: 17,
-        cursor: isShapeMode ? selectedShapeId ? "move" : "pointer" : "none",
+        cursor,
         pointerEvents: isShapeMode ? "auto" : "none"
       },
       onPointerDown,
@@ -4268,6 +4406,7 @@ function ResizePanel() {
 }
 
 // components/editor/panels/AnnotatePanel.tsx
+var import_react12 = require("react");
 var import_jsx_runtime14 = require("react/jsx-runtime");
 var COLORS = ["#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00cfff", "#ffffff", "#000000"];
 var WIDTHS = [2, 4, 8, 16];
@@ -4405,6 +4544,24 @@ function DrawTools({
   clearStrokes,
   strokes
 }) {
+  const [editingDur, setEditingDur] = (0, import_react12.useState)(false);
+  const [durDraft, setDurDraft] = (0, import_react12.useState)("");
+  const durInputRef = (0, import_react12.useRef)(null);
+  const commitDur = (0, import_react12.useCallback)(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setAnnotationDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setAnnotationDuration]);
+  const startEditDur = (0, import_react12.useCallback)(() => {
+    setDurDraft(annotationDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [annotationDuration]);
   return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6", children: [
     /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
       /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Tool" }),
@@ -4476,10 +4633,43 @@ function DrawTools({
             }
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
-          annotationDuration.toFixed(1),
-          "s"
-        ] })
+        editingDur ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            ref: durInputRef,
+            type: "number",
+            min: 0.25,
+            max: 30,
+            step: 0.25,
+            value: durDraft,
+            onChange: (e) => setDurDraft(e.target.value),
+            onBlur: commitDur,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") commitDur();
+              if (e.key === "Escape") setEditingDur(false);
+            },
+            className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+            style: {
+              color: "var(--kt-text-primary)",
+              background: "var(--kt-bg-input)",
+              borderColor: "var(--kt-accent)",
+              outline: "none"
+            },
+            autoFocus: true
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            onClick: startEditDur,
+            className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+            style: { color: "var(--kt-text-secondary)" },
+            title: "Click to edit",
+            children: [
+              annotationDuration.toFixed(1),
+              "s"
+            ]
+          }
+        )
       ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
@@ -4509,11 +4699,11 @@ function DrawTools({
   ] });
 }
 var SHAPE_STYLES = [
-  { key: "simple", label: "Simple", icon: "\u25A2" },
-  { key: "note", label: "Note", icon: "\u{1F4DD}" },
-  { key: "sticky", label: "Sticky", icon: "\u{1F4CC}" },
-  { key: "outline", label: "Outline", icon: "\u25FB" },
-  { key: "neon", label: "Neon", icon: "\u{1F4A1}" }
+  { key: "simple", label: "Simple" },
+  { key: "note", label: "Note" },
+  { key: "sticky", label: "Sticky" },
+  { key: "outline", label: "Outline" },
+  { key: "neon", label: "Neon" }
 ];
 function ShapeTools({
   shapeTool,
@@ -4538,6 +4728,24 @@ function ShapeTools({
   removeShape,
   clearShapes
 }) {
+  const [editingDur, setEditingDur] = (0, import_react12.useState)(false);
+  const [durDraft, setDurDraft] = (0, import_react12.useState)("");
+  const durInputRef = (0, import_react12.useRef)(null);
+  const commitDur = (0, import_react12.useCallback)(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setShapeDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setShapeDuration]);
+  const startEditDur = (0, import_react12.useCallback)(() => {
+    setDurDraft(shapeDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [shapeDuration]);
   const handleAddShape = () => {
     addShape({
       type: shapeTool,
@@ -4568,16 +4776,12 @@ function ShapeTools({
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
       /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Style" }),
-      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: SHAPE_STYLES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: SHAPE_STYLES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         "button",
         {
           onClick: () => setShapeStyle(s.key),
-          className: `flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
-          title: s.label,
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-sm", children: s.icon }),
-            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { children: s.label })
-          ]
+          className: `px-3 py-1.5 rounded text-xs font-medium transition-colors ${shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: s.label
         },
         s.key
       )) })
@@ -4715,10 +4919,43 @@ function ShapeTools({
             }
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
-          shapeDuration.toFixed(1),
-          "s"
-        ] })
+        editingDur ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+          "input",
+          {
+            ref: durInputRef,
+            type: "number",
+            min: 0.25,
+            max: 30,
+            step: 0.25,
+            value: durDraft,
+            onChange: (e) => setDurDraft(e.target.value),
+            onBlur: commitDur,
+            onKeyDown: (e) => {
+              if (e.key === "Enter") commitDur();
+              if (e.key === "Escape") setEditingDur(false);
+            },
+            className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+            style: {
+              color: "var(--kt-text-primary)",
+              background: "var(--kt-bg-input)",
+              borderColor: "var(--kt-accent)",
+              outline: "none"
+            },
+            autoFocus: true
+          }
+        ) : /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+          "button",
+          {
+            onClick: startEditDur,
+            className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+            style: { color: "var(--kt-text-secondary)" },
+            title: "Click to edit",
+            children: [
+              shapeDuration.toFixed(1),
+              "s"
+            ]
+          }
+        )
       ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
@@ -4757,7 +4994,7 @@ function ShapeTools({
 }
 
 // components/editor/panels/StickerPanel.tsx
-var import_react12 = require("react");
+var import_react13 = require("react");
 var import_jsx_runtime15 = require("react/jsx-runtime");
 var STICKER_GROUPS = [
   {
@@ -4783,8 +5020,26 @@ function StickerPanel() {
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
   const stickerDuration = useEditorStore((s) => s.stickerDuration);
   const setStickerDuration = useEditorStore((s) => s.setStickerDuration);
-  const imageInputRef = (0, import_react12.useRef)(null);
+  const imageInputRef = (0, import_react13.useRef)(null);
+  const durationInputRef = (0, import_react13.useRef)(null);
+  const [editingDuration, setEditingDuration] = (0, import_react13.useState)(false);
+  const [durationDraft, setDurationDraft] = (0, import_react13.useState)("");
   const stickerOverlays = overlays.filter((o) => o.type === "sticker");
+  const commitDuration = (0, import_react13.useCallback)(() => {
+    const val = parseFloat(durationDraft);
+    if (!isNaN(val)) {
+      setStickerDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDuration(false);
+  }, [durationDraft, setStickerDuration]);
+  const startEditing = (0, import_react13.useCallback)(() => {
+    setDurationDraft(stickerDuration.toFixed(2));
+    setEditingDuration(true);
+    requestAnimationFrame(() => {
+      var _a;
+      return (_a = durationInputRef.current) == null ? void 0 : _a.select();
+    });
+  }, [stickerDuration]);
   const handleAddEmoji = (emoji) => {
     addStickerOverlay({ emoji, x: 0.5, y: 0.5, scale: 1 });
   };
@@ -4845,9 +5100,9 @@ function StickerPanel() {
               "input",
               {
                 type: "range",
-                min: 0.5,
+                min: 0.25,
                 max: 10,
-                step: 0.5,
+                step: 0.25,
                 value: stickerDuration,
                 onChange: (e) => setStickerDuration(parseFloat(e.target.value)),
                 className: "w-16 h-1.5 rounded-full appearance-none cursor-pointer",
@@ -4857,10 +5112,43 @@ function StickerPanel() {
                 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
-              stickerDuration.toFixed(1),
-              "s"
-            ] })
+            editingDuration ? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+              "input",
+              {
+                ref: durationInputRef,
+                type: "number",
+                min: 0.25,
+                max: 30,
+                step: 0.25,
+                value: durationDraft,
+                onChange: (e) => setDurationDraft(e.target.value),
+                onBlur: commitDuration,
+                onKeyDown: (e) => {
+                  if (e.key === "Enter") commitDuration();
+                  if (e.key === "Escape") setEditingDuration(false);
+                },
+                className: "w-14 h-6 px-1 rounded text-xs tabular-nums text-center border",
+                style: {
+                  color: "var(--kt-text-primary)",
+                  background: "var(--kt-bg-input)",
+                  borderColor: "var(--kt-accent)",
+                  outline: "none"
+                },
+                autoFocus: true
+              }
+            ) : /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+              "button",
+              {
+                onClick: startEditing,
+                className: "text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left",
+                style: { color: "var(--kt-text-secondary)" },
+                title: "Click to edit",
+                children: [
+                  stickerDuration.toFixed(1),
+                  "s"
+                ]
+              }
+            )
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "flex flex-wrap items-center gap-x-3 gap-y-1", children: STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex items-center shrink-0 gap-1", children: [
             /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-faint)" }, children: [
@@ -4918,17 +5206,17 @@ function StickerPanel() {
 }
 
 // components/editor/panels/VoiceRecorder.tsx
-var import_react13 = require("react");
+var import_react14 = require("react");
 var import_shallow3 = require("zustand/react/shallow");
 var import_jsx_runtime16 = require("react/jsx-runtime");
 function VoiceRecorder() {
-  const [isRecording, setIsRecording] = (0, import_react13.useState)(false);
-  const [recordingDuration, setRecordingDuration] = (0, import_react13.useState)(0);
-  const mediaRecorderRef = (0, import_react13.useRef)(null);
-  const chunksRef = (0, import_react13.useRef)([]);
-  const timerRef = (0, import_react13.useRef)(null);
-  const streamRef = (0, import_react13.useRef)(null);
-  const recordingDurationRef = (0, import_react13.useRef)(0);
+  const [isRecording, setIsRecording] = (0, import_react14.useState)(false);
+  const [recordingDuration, setRecordingDuration] = (0, import_react14.useState)(0);
+  const mediaRecorderRef = (0, import_react14.useRef)(null);
+  const chunksRef = (0, import_react14.useRef)([]);
+  const timerRef = (0, import_react14.useRef)(null);
+  const streamRef = (0, import_react14.useRef)(null);
+  const recordingDurationRef = (0, import_react14.useRef)(0);
   const overlays = useEditorStore((0, import_shallow3.useShallow)((s) => s.overlays.filter((o) => o.type === "voice")));
   const addVoiceOverlay = useEditorStore((s) => s.addVoiceOverlay);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
@@ -4938,13 +5226,13 @@ function VoiceRecorder() {
   const duration = useEditorStore((s) => s.duration);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  (0, import_react13.useEffect)(() => {
+  (0, import_react14.useEffect)(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
-  const startRecording = (0, import_react13.useCallback)(async () => {
+  const startRecording = (0, import_react14.useCallback)(async () => {
     setPlaying(false);
     setPlaybackRate(0);
     try {
@@ -4976,7 +5264,7 @@ function VoiceRecorder() {
       console.error("Failed to start recording:", err);
     }
   }, [addVoiceOverlay]);
-  const stopRecording = (0, import_react13.useCallback)(() => {
+  const stopRecording = (0, import_react14.useCallback)(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -5114,7 +5402,7 @@ function VoiceRecorder() {
 }
 
 // hooks/useKeyboardShortcuts.ts
-var import_react14 = require("react");
+var import_react15 = require("react");
 function useKeyboardShortcuts() {
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
   const setZoomFn = useEditorStore((s) => s.setZoom);
@@ -5125,7 +5413,7 @@ function useKeyboardShortcuts() {
   const redo = useEditorStore((s) => s.redo);
   const captureHistory = useEditorStore((s) => s.captureHistory);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  (0, import_react14.useEffect)(() => {
+  (0, import_react15.useEffect)(() => {
     const handler = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const { currentTime, fps, duration, zoom, playbackRate } = useEditorStore.getState();
@@ -5219,7 +5507,7 @@ function useKeyboardShortcuts() {
 var import_shallow4 = require("zustand/react/shallow");
 var import_jsx_runtime17 = require("react/jsx-runtime");
 function Editor() {
-  const [activeTool, setActiveTool] = (0, import_react15.useState)("trim");
+  const [activeTool, setActiveTool] = (0, import_react16.useState)("trim");
   const setCropToolActive = useEditorStore((s) => s.setCropToolActive);
   const { status: exportStatus, progress: exportProgress, outputUrl } = useEditorStore(
     (0, import_shallow4.useShallow)((s) => ({ status: s.status, progress: s.progress, outputUrl: s.outputUrl }))
@@ -5231,14 +5519,14 @@ function Editor() {
   const { importFiles } = useVideoImport();
   const { downloadExport, cancelExport } = useExport();
   useKeyboardShortcuts();
-  const handleToolChange = (0, import_react15.useCallback)((tool) => {
+  const handleToolChange = (0, import_react16.useCallback)((tool) => {
     setActiveTool(tool);
     setCropToolActive(tool === "crop");
   }, [setCropToolActive]);
-  const onDragOver = (0, import_react15.useCallback)((e) => {
+  const onDragOver = (0, import_react16.useCallback)((e) => {
     e.preventDefault();
   }, []);
-  const onDrop = (0, import_react15.useCallback)(
+  const onDrop = (0, import_react16.useCallback)(
     (e) => {
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
@@ -5460,7 +5748,7 @@ function Kutlass({
   onExportComplete
 }) {
   const storeTheme = useEditorStore((s) => s.theme);
-  const colorOverrides = (0, import_react16.useMemo)(() => {
+  const colorOverrides = (0, import_react17.useMemo)(() => {
     const vars = {};
     if (accent) {
       const derived = deriveAccentVars(accent, storeTheme === "dark");
@@ -5473,15 +5761,15 @@ function Kutlass({
     }
     return vars;
   }, [accent, colors, storeTheme]);
-  (0, import_react16.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
   }, [ffmpegPaths]);
-  (0, import_react16.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (exportSettings) {
       useEditorStore.getState().updateExportSettings(exportSettings);
     }
   }, [exportSettings]);
-  (0, import_react16.useEffect)(() => {
+  (0, import_react17.useEffect)(() => {
     if (!onExportComplete) return;
     return useEditorStore.subscribe((state, prev) => {
       if (state.status === "done" && prev.status !== "done" && state.outputUrl) {

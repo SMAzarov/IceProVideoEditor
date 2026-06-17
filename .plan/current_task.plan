@@ -1,0 +1,45 @@
+# Текущий план работ
+
+## Цель
+Доработка редактора Kutlass: улучшение UI/UX, исправление багов, добавление функций.
+
+## Текущий статус
+Выполнено:
+- ✅ About Kutlass → About IceProVideoEditor
+- ✅ Светлая тема — затемнён текст для читаемости
+- ✅ Иконки sidebar — цветные
+- ✅ localStorage для темы (сохраняется при F5)
+- ✅ Фон body/html под цвет темы (нет чёрного на скруглениях Mac)
+- ✅ Шрифты увеличены (13px база, text-sm в меню, 11px в сайдбаре)
+- ✅ Исправлена ошибка гидратации Next.js (inline script в layout.tsx)
+- ✅ Цвет текста sidebar для неактивных кнопок (var(--kt-text-tertiary))
+- ✅ Ручной ввод duration в StickerPanel, AnnotatePanel (DrawTools + ShapeTools)
+- ✅ Resize фигур за угол в ShapeOverlay.tsx
+- ✅ Выровнен размер кнопок в Draw и Shapes
+- ✅ Прозрачный фон (fillColor "transparent") для всех стилей shapes
+- ✅ Fill для "note" рисуется на одном path со stroke
+- ✅ Закругление углов 6px для всех rectangle shapes
+
+## Шаги реализации
+- [x] About Kutlass → About IceProVideoEditor
+- [x] Светлая тема — затемнён текст для читаемости
+- [x] Иконки sidebar — цветные
+- [x] localStorage для темы (сохраняется при F5)
+- [x] Фон body/html под цвет темы (нет чёрного на скруглениях Mac)
+- [x] Шрифты увеличены (13px база, text-sm в меню, 11px в сайдбаре)
+- [x] Исправлена ошибка гидратации Next.js (inline script в layout.tsx)
+- [x] Цвет текста sidebar для неактивных кнопок (var(--kt-text-tertiary))
+- [x] Ручной ввод duration в StickerPanel, AnnotatePanel
+- [x] Resize фигур за угол
+- [x] Выровнять размер кнопок в Draw и Shapes
+- [x] Прозрачный фон для shapes
+- [x] Исправить fill для "note" (один path)
+- [x] Закругление углов для rectangle shapes
+
+## Критерии проверки
+1. Светлая/тёмная тема переключается и сохраняется
+2. Все duration можно редактировать кликом по цифре
+3. Shapes можно растягивать за угол
+4. Fill "None" даёт прозрачный фон для всех стилей
+5. Note style рисуется без артефактов (fill совпадает со stroke)
+6. У всех прямоугольников скруглённые углы

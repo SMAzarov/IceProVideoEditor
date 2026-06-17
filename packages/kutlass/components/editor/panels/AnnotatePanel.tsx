@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditorStore } from "@/store/editorStore";
+import { useRef, useState, useCallback } from "react";
 import { DrawingTool } from "@/store/slices/drawingSlice";
 import { ShapeType, ShapeStyle } from "@/types/editor";
 
@@ -163,6 +164,23 @@ function DrawTools({
   clearStrokes: () => void;
   strokes: unknown[];
 }) {
+  const [editingDur, setEditingDur] = useState(false);
+  const [durDraft, setDurDraft] = useState("");
+  const durInputRef = useRef<HTMLInputElement>(null);
+
+  const commitDur = useCallback(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setAnnotationDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setAnnotationDuration]);
+
+  const startEditDur = useCallback(() => {
+    setDurDraft(annotationDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => durInputRef.current?.select());
+  }, [annotationDuration]);
   return (
     <div className="flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6">
       {/* Tool selector */}
@@ -243,9 +261,39 @@ function DrawTools({
               accentColor: "var(--kt-accent)",
             }}
           />
-          <span className="text-xs tabular-nums" style={{ color: "var(--kt-text-secondary)", minWidth: 28 }}>
-            {annotationDuration.toFixed(1)}s
-          </span>
+          {editingDur ? (
+            <input
+              ref={durInputRef}
+              type="number"
+              min={0.25}
+              max={30}
+              step={0.25}
+              value={durDraft}
+              onChange={(e) => setDurDraft(e.target.value)}
+              onBlur={commitDur}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitDur();
+                if (e.key === "Escape") setEditingDur(false);
+              }}
+              className="w-14 h-6 px-1 rounded text-xs tabular-nums text-center border"
+              style={{
+                color: "var(--kt-text-primary)",
+                background: "var(--kt-bg-input)",
+                borderColor: "var(--kt-accent)",
+                outline: "none",
+              }}
+              autoFocus
+            />
+          ) : (
+            <button
+              onClick={startEditDur}
+              className="text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left"
+              style={{ color: "var(--kt-text-secondary)" }}
+              title="Click to edit"
+            >
+              {annotationDuration.toFixed(1)}s
+            </button>
+          )}
         </div>
       </div>
 
@@ -276,12 +324,12 @@ function DrawTools({
 
 // ── Shape tools ───────────────────────────────────────────────────────────────
 
-const SHAPE_STYLES: { key: ShapeStyle; label: string; icon: string }[] = [
-  { key: "simple", label: "Simple", icon: "▢" },
-  { key: "note", label: "Note", icon: "📝" },
-  { key: "sticky", label: "Sticky", icon: "📌" },
-  { key: "outline", label: "Outline", icon: "◻" },
-  { key: "neon", label: "Neon", icon: "💡" },
+const SHAPE_STYLES: { key: ShapeStyle; label: string }[] = [
+  { key: "simple", label: "Simple" },
+  { key: "note", label: "Note" },
+  { key: "sticky", label: "Sticky" },
+  { key: "outline", label: "Outline" },
+  { key: "neon", label: "Neon" },
 ];
 
 function ShapeTools({
@@ -329,6 +377,24 @@ function ShapeTools({
   removeShape: (id: string) => void;
   clearShapes: () => void;
 }) {
+  const [editingDur, setEditingDur] = useState(false);
+  const [durDraft, setDurDraft] = useState("");
+  const durInputRef = useRef<HTMLInputElement>(null);
+
+  const commitDur = useCallback(() => {
+    const val = parseFloat(durDraft);
+    if (!isNaN(val)) {
+      setShapeDuration(Math.min(30, Math.max(0.25, val)));
+    }
+    setEditingDur(false);
+  }, [durDraft, setShapeDuration]);
+
+  const startEditDur = useCallback(() => {
+    setDurDraft(shapeDuration.toFixed(2));
+    setEditingDur(true);
+    requestAnimationFrame(() => durInputRef.current?.select());
+  }, [shapeDuration]);
+
   const handleAddShape = () => {
     addShape({
       type: shapeTool,
@@ -373,13 +439,11 @@ function ShapeTools({
             <button
               key={s.key}
               onClick={() => setShapeStyle(s.key)}
-              className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
                 shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"
               }`}
-              title={s.label}
             >
-              <span className="text-sm">{s.icon}</span>
-              <span>{s.label}</span>
+              {s.label}
             </button>
           ))}
         </div>
@@ -516,9 +580,39 @@ function ShapeTools({
               accentColor: "var(--kt-accent)",
             }}
           />
-          <span className="text-xs tabular-nums" style={{ color: "var(--kt-text-secondary)", minWidth: 28 }}>
-            {shapeDuration.toFixed(1)}s
-          </span>
+          {editingDur ? (
+            <input
+              ref={durInputRef}
+              type="number"
+              min={0.25}
+              max={30}
+              step={0.25}
+              value={durDraft}
+              onChange={(e) => setDurDraft(e.target.value)}
+              onBlur={commitDur}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitDur();
+                if (e.key === "Escape") setEditingDur(false);
+              }}
+              className="w-14 h-6 px-1 rounded text-xs tabular-nums text-center border"
+              style={{
+                color: "var(--kt-text-primary)",
+                background: "var(--kt-bg-input)",
+                borderColor: "var(--kt-accent)",
+                outline: "none",
+              }}
+              autoFocus
+            />
+          ) : (
+            <button
+              onClick={startEditDur}
+              className="text-xs tabular-nums cursor-text hover:underline min-w-[28px] text-left"
+              style={{ color: "var(--kt-text-secondary)" }}
+              title="Click to edit"
+            >
+              {shapeDuration.toFixed(1)}s
+            </button>
+          )}
         </div>
       </div>
 
