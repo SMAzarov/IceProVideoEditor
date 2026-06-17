@@ -26,6 +26,8 @@ export function StickerPanel() {
   const addStickerOverlay = useEditorStore((s) => s.addStickerOverlay);
   const overlays = useEditorStore((s) => s.overlays);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
+  const stickerDuration = useEditorStore((s) => s.stickerDuration);
+  const setStickerDuration = useEditorStore((s) => s.setStickerDuration);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const stickerOverlays = overlays.filter((o) => o.type === "sticker");
@@ -54,7 +56,7 @@ export function StickerPanel() {
 
   return (
     <div
-      className="shrink-0 border-t px-3 md:px-4 py-3 overflow-y-auto max-h-[160px]"
+      className="shrink-0 border-t px-3 md:px-4 py-3 overflow-y-auto max-h-[200px]"
       style={{ borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }}
     >
       <div className="flex gap-4 h-full">
@@ -79,6 +81,29 @@ export function StickerPanel() {
               className="hidden"
               onChange={handleImageUpload}
             />
+          </div>
+
+          {/* Duration control */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--kt-text-muted)" }}>
+              Duration
+            </span>
+            <input
+              type="range"
+              min={0.5}
+              max={10}
+              step={0.5}
+              value={stickerDuration}
+              onChange={(e) => setStickerDuration(parseFloat(e.target.value))}
+              className="w-16 h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: "var(--kt-slider-track)",
+                accentColor: "var(--kt-accent)",
+              }}
+            />
+            <span className="text-xs tabular-nums" style={{ color: "var(--kt-text-secondary)", minWidth: 28 }}>
+              {stickerDuration.toFixed(1)}s
+            </span>
           </div>
 
           {STICKER_GROUPS.map((group) => (

@@ -10,6 +10,7 @@ export interface EffectParams {
   cropW: number;      // 0-1, default 1
   cropH: number;      // 0-1, default 1
   opacity: number;    // 0-1, default 1
+  speed: number;      // 0.25-4, default 1 (1 = normal speed)
 }
 
 // Text overlay placed on top of the video
@@ -23,6 +24,8 @@ export interface TextOverlay {
   color: string;      // hex
   fontFamily: string;
   bold: boolean;
+  startTime: number;  // seconds on timeline when this overlay appears
+  endTime: number;    // seconds on timeline when this overlay disappears
 }
 
 // Emoji/sticker overlay
@@ -34,9 +37,20 @@ export interface StickerOverlay {
   x: number;           // 0-1 normalized
   y: number;           // 0-1 normalized
   scale: number;       // 1 = default size
+  startTime: number;   // seconds on timeline when this overlay appears
+  endTime: number;     // seconds on timeline when this overlay disappears
 }
 
-export type Overlay = TextOverlay | StickerOverlay;
+// Voice overlay (recorded audio comment)
+export interface VoiceOverlay {
+  id: string;
+  type: "voice";
+  audioUrl: string;       // blob URL from MediaRecorder
+  startTime: number;      // seconds on timeline when this voice starts
+  endTime: number;        // seconds on timeline when this voice ends
+}
+
+export type Overlay = TextOverlay | StickerOverlay | VoiceOverlay;
 
 export const DEFAULT_EFFECTS: EffectParams = {
   brightness: 0,
@@ -48,6 +62,7 @@ export const DEFAULT_EFFECTS: EffectParams = {
   cropW: 1,
   cropH: 1,
   opacity: 1,
+  speed: 1,
 };
 
 export interface Clip {
@@ -93,3 +108,10 @@ export const DEFAULT_EXPORT_SETTINGS: ExportSettings = {
 };
 
 export type ExportStatus = "idle" | "preparing" | "encoding" | "done" | "error";
+
+/** A freeze segment — video pauses at a specific frame for a duration */
+export interface FreezeSegment {
+  id: string;
+  startTime: number; // timeline time when freeze begins
+  endTime: number;   // timeline time when freeze ends
+}

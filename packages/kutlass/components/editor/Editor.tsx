@@ -12,6 +12,7 @@ import { CropPanel } from "./panels/CropPanel";
 import { ResizePanel } from "./panels/ResizePanel";
 import { AnnotatePanel } from "./panels/AnnotatePanel";
 import { StickerPanel } from "./panels/StickerPanel";
+import { VoiceRecorder } from "./panels/VoiceRecorder";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useVideoImport } from "@/hooks/useVideoImport";
 import { useExport } from "@/hooks/useExport";
@@ -218,6 +219,18 @@ export function Editor() {
                 transition={{ duration: 0.15 }}
               >
                 <StickerPanel />
+              </motion.div>
+            )}
+
+            {activeTool === "voice" && (
+              <motion.div
+                key="voice"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.15 }}
+              >
+                <VoiceRecorder />
               </motion.div>
             )}
           </AnimatePresence>

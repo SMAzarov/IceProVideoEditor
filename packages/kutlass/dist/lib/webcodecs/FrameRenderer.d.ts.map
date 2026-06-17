@@ -1,0 +1,1 @@
+{"version":3,"file":"FrameRenderer.d.ts","sourceRoot":"","sources":["../../../lib/webcodecs/FrameRenderer.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,YAAY,EAAE,MAAM,gBAAgB,CAAC;AAE9C,qBAAa,aAAa;IACxB,WAAW,CACT,KAAK,EAAE,UAAU,EACjB,MAAM,EAAE,iBAAiB,GAAG,eAAe,EAC3C,OAAO,EAAE,YAAY,GACpB,IAAI;IAmCP,KAAK,CAAC,MAAM,EAAE,iBAAiB,GAAG,eAAe,GAAG,IAAI;CAKzD"}

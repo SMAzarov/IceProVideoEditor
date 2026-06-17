@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { runExport } from "@/lib/ffmpeg/exportPipeline";
+import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
 
 // Module-level so all useExport() consumers share the same controller
 let activeController: AbortController | null = null;
@@ -13,6 +14,7 @@ export function useExport() {
   const clipEffects = useEditorStore((s) => s.clipEffects);
   const strokes = useEditorStore((s) => s.strokes);
   const overlays = useEditorStore((s) => s.overlays);
+  const freezes = useEditorStore((s) => s.freezes);
   const setExportStatus = useEditorStore((s) => s.setExportStatus);
   const setExportProgress = useEditorStore((s) => s.setExportProgress);
   const setOutputUrl = useEditorStore((s) => s.setOutputUrl);
@@ -22,6 +24,12 @@ export function useExport() {
   const startExport = useCallback(async () => {
     const videoClips = clips.filter((c) => c.trackId === "track-video");
     if (videoClips.length === 0) return;
+
+    // Stop any active playback before starting export
+    useEditorStore.getState().setPlaying(false);
+    for (const clip of videoClips) {
+      getDecoderForFile(clip.file).stopPlayback();
+    }
 
     // Abort any in-flight export
     activeController?.abort();
@@ -38,6 +46,7 @@ export function useExport() {
         effectsMap: clipEffects,
         strokes,
         overlays,
+        freezes,
         signal: controller.signal,
         onProgress: (p) => {
           if (controller.signal.aborted) return;
@@ -63,7 +72,7 @@ export function useExport() {
       setExportError(err instanceof Error ? err.message : "Export failed");
       setExportStatus("error");
     }
-  }, [clips, settings, clipEffects, strokes, overlays, resetExport, setExportStatus, setExportProgress, setOutputUrl, setExportError]);
+  }, [clips, settings, clipEffects, strokes, overlays, freezes, resetExport, setExportStatus, setExportProgress, setOutputUrl, setExportError]);
 
   const cancelExport = useCallback(() => {
     activeController?.abort();

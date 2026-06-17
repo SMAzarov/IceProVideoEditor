@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import { useEditorStore } from "@/store/editorStore";
 import { Overlay, TextOverlay, StickerOverlay } from "@/types/editor";
 
 /**
  * Renders text and sticker overlays as absolutely-positioned HTML elements
  * over the preview canvas. Each overlay is draggable.
+ *
+ * Uses a subscription-based approach to stay in sync with currentTime
+ * during playback, avoiding React re-render lag.
  */
 export function OverlayLayer() {
   const overlays = useEditorStore((s) => s.overlays);
@@ -14,6 +17,28 @@ export function OverlayLayer() {
   const selectOverlay = useEditorStore((s) => s.selectOverlay);
   const updateOverlay = useEditorStore((s) => s.updateOverlay);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
+
+  // Use a local state that updates via subscription for synced visibility
+  const [visibleOverlays, setVisibleOverlays] = useState<Overlay[]>(() => {
+    const { currentTime } = useEditorStore.getState();
+    return overlays.filter(
+      (o) => o.startTime <= currentTime && currentTime < o.endTime
+    );
+  });
+
+  // Subscribe to store changes for synced visibility updates
+  useEffect(() => {
+    const unsub = useEditorStore.subscribe(() => {
+      const { currentTime } = useEditorStore.getState();
+      const { overlays: allOverlays } = useEditorStore.getState();
+      setVisibleOverlays(
+        allOverlays.filter(
+          (o) => o.startTime <= currentTime && currentTime < o.endTime
+        )
+      );
+    });
+    return unsub;
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -25,7 +50,7 @@ export function OverlayLayer() {
   } | null>(null);
 
   const onPointerDown = useCallback(
-    (overlay: Overlay) => (e: React.PointerEvent) => {
+    (overlay: TextOverlay | StickerOverlay) => (e: React.PointerEvent) => {
       e.stopPropagation();
       selectOverlay(overlay.id);
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -57,7 +82,7 @@ export function OverlayLayer() {
     dragRef.current = null;
   }, []);
 
-  if (overlays.length === 0) return null;
+  if (visibleOverlays.length === 0) return null;
 
   return (
     <div
@@ -67,7 +92,7 @@ export function OverlayLayer() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {overlays.map((overlay) => {
+      {visibleOverlays.map((overlay) => {
         const isSelected = selectedOverlayId === overlay.id;
 
         if (overlay.type === "text") {

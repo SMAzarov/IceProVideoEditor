@@ -8,10 +8,13 @@ import {
   Overlay,
   TextOverlay,
   StickerOverlay,
+  VoiceOverlay,
+  FreezeSegment,
 } from "@/types/editor";
 import { Stroke } from "@/store/slices/drawingSlice";
 import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
 import { FrameRenderer } from "@/lib/webcodecs/FrameRenderer";
+import { blobToWav, padWavWithSilence, trimWavEnd, mergeWavBuffers } from "@/lib/audioUtils";
 import { getFFmpeg } from "./ffmpegClient";
 
 export interface ExportJob {
@@ -20,11 +23,34 @@ export interface ExportJob {
   effectsMap: Record<string, EffectParams>;
   strokes: Stroke[];
   overlays: Overlay[];
+  freezes: FreezeSegment[];
   onProgress: (progress: number) => void;
   signal?: AbortSignal;
 }
 
 // ── Canvas compositing helpers ────────────────────────────────────────────────
+
+/** Draw a triangular arrowhead at the end of a line segment. */
+function drawArrowhead(
+  ctx: OffscreenCanvasRenderingContext2D,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  headLength: number
+) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.save();
+  ctx.translate(toX, toY);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-headLength, -headLength * 0.4);
+  ctx.lineTo(-headLength, headLength * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
 
 function drawStrokes(
   ctx: OffscreenCanvasRenderingContext2D,
@@ -35,18 +61,56 @@ function drawStrokes(
   for (const stroke of strokes) {
     if (stroke.points.length < 2) continue;
     ctx.save();
-    ctx.globalCompositeOperation =
-      stroke.tool === "eraser" ? "destination-out" : "source-over";
-    ctx.strokeStyle = stroke.color;
+
+    const isEraser = stroke.tool === "eraser";
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
     ctx.lineWidth = stroke.width;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(stroke.points[0].x * w, stroke.points[0].y * h);
-    for (let i = 1; i < stroke.points.length; i++) {
-      ctx.lineTo(stroke.points[i].x * w, stroke.points[i].y * h);
+
+    const p0 = stroke.points[0];
+    const p1 = stroke.points[stroke.points.length - 1];
+    const x0 = p0.x * w;
+    const y0 = p0.y * h;
+    const x1 = p1.x * w;
+    const y1 = p1.y * h;
+
+    if (stroke.tool === "arrow" || stroke.tool === "straight") {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      if (stroke.tool === "arrow") {
+        ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
+        drawArrowhead(ctx, x0, y0, x1, y1, Math.max(12, stroke.width * 3));
+      }
+    } else if (stroke.tool === "curved") {
+      if (stroke.points.length >= 3) {
+        const cp = stroke.points[1];
+        const cx = cp.x * w;
+        const cy = cp.y * h;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.quadraticCurveTo(cx, cy, x1, y1);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+    } else {
+      // pen / eraser — polyline through all points
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x * w, stroke.points[i].y * h);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
+
     ctx.restore();
   }
 }
@@ -58,26 +122,29 @@ async function drawOverlays(
   h: number
 ) {
   for (const overlay of overlays) {
-    const px = overlay.x * w;
-    const py = overlay.y * h;
+    if (overlay.type === "voice") continue;
 
-    if (overlay.type === "text") {
-      const o = overlay as TextOverlay;
-      const size = Math.round((o.fontSize / 720) * h); // scale fontSize to output height
+    const o = overlay as TextOverlay | StickerOverlay;
+    const px = o.x * w;
+    const py = o.y * h;
+
+    if (o.type === "text") {
+      const t = o as TextOverlay;
+      const size = Math.round((t.fontSize / 720) * h);
       ctx.save();
-      ctx.font = `${o.bold ? "bold " : ""}${size}px ${o.fontFamily ?? "sans-serif"}`;
-      ctx.fillStyle = o.color;
+      ctx.font = `${t.bold ? "bold " : ""}${size}px ${t.fontFamily ?? "sans-serif"}`;
+      ctx.fillStyle = t.color;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(o.text, px, py);
+      ctx.fillText(t.text, px, py);
       ctx.restore();
     } else {
-      const o = overlay as StickerOverlay;
-      const baseSize = Math.round(80 * o.scale * (h / 720));
+      const s = o as StickerOverlay;
+      const baseSize = Math.round(80 * s.scale * (h / 720));
 
-      if (o.imageUrl) {
+      if (s.imageUrl) {
         try {
-          const resp = await fetch(o.imageUrl);
+          const resp = await fetch(s.imageUrl);
           const blob = await resp.blob();
           const bmp = await createImageBitmap(blob);
           ctx.save();
@@ -87,13 +154,13 @@ async function drawOverlays(
         } catch {
           // skip unloadable images
         }
-      } else if (o.emoji) {
-        const size = Math.round(60 * o.scale * (h / 720));
+      } else if (s.emoji) {
+        const size = Math.round(60 * s.scale * (h / 720));
         ctx.save();
         ctx.font = `${size}px serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(o.emoji, px, py);
+        ctx.fillText(s.emoji, px, py);
         ctx.restore();
       }
     }
@@ -133,10 +200,8 @@ function getOutputSize(
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export async function runExport(job: ExportJob): Promise<Uint8Array> {
-  const { clips, settings, effectsMap, strokes, overlays, onProgress, signal } = job;
+  const { clips, settings, effectsMap, strokes, overlays, freezes, onProgress, signal } = job;
   const ffmpeg = await getFFmpeg();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { fetchFile } = await import("@ffmpeg/util" as any);
 
   const renderer = new FrameRenderer();
   const fps = settings.fps;
@@ -150,44 +215,89 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   // ── Render every frame to JPEG and write into FFmpeg FS ──────────────────
   let globalFrameIdx = 0;
-  const totalFrames = clips.reduce((sum, c) => sum + Math.ceil(c.duration * fps), 0);
+  // Total frames accounting for speed: slower speed = more frames, faster = fewer
+  const totalFrames = clips.reduce((sum, c) => {
+    const effects = effectsMap[c.id] ?? DEFAULT_EFFECTS;
+    const speed = effects.speed ?? 1;
+    return sum + Math.ceil((c.duration * fps) / speed);
+  }, 0);
+
+  // Cache for freeze frames — when we hit a freeze segment we repeat the last rendered frame
+  let lastFrameCanvas: OffscreenCanvas | null = null;
 
   for (const clip of clips) {
     const effects = effectsMap[clip.id] ?? DEFAULT_EFFECTS;
+    const speed = effects.speed ?? 1;
     const decoder  = getDecoderForFile(clip.file);
-    const frameCount = Math.ceil(clip.duration * fps);
+    // Number of source frames to decode (based on clip duration at normal speed)
+    const sourceFrameCount = Math.ceil(clip.duration * fps);
+    // Number of output frames to write (adjusted for speed)
+    const outputFrameCount = Math.ceil((clip.duration * fps) / speed);
 
-    for (let i = 0; i < frameCount; i++) {
+    for (let outIdx = 0; outIdx < outputFrameCount; outIdx++) {
       if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
 
-      const sourceTime = clip.trimIn + i / fps;
+      // Map output frame index to source frame index based on speed
+      // speed=0.5 (slow motion): each source frame is written 2x → outIdx/2
+      // speed=2 (fast forward): every other source frame is skipped → outIdx*2
+      const srcIdx = Math.min(
+        Math.floor(outIdx * speed),
+        sourceFrameCount - 1
+      );
+      const sourceTime = clip.trimIn + srcIdx / fps;
 
-      const frame = await decoder.requestFrame(
-        clip.file,
-        Math.min(sourceTime, clip.trimOut - 0.001)
+      // Determine the timeline time for this output frame
+      const frameTime = clip.startTime + outIdx / fps * speed;
+
+      // Check if this frame falls within a freeze segment
+      const isFrozen = freezes.some(
+        (f) => frameTime >= f.startTime && frameTime < f.endTime
       );
 
-      // Render video frame + effects onto an OffscreenCanvas at output size
-      const canvas = new OffscreenCanvas(outW, outH);
+      let canvas: OffscreenCanvas;
 
-      if (frame) {
-        // FrameRenderer sizes canvas to crop dimensions; we want outW×outH,
-        // so we render to a temp canvas first then scale into our target.
-        const tmp = new OffscreenCanvas(1, 1);
-        renderer.renderFrame(frame, tmp, effects);
-        frame.close();
-
+      if (isFrozen && lastFrameCanvas) {
+        // Reuse the last rendered frame — freeze the video
+        canvas = new OffscreenCanvas(outW, outH);
         const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
-        ctx.drawImage(tmp, 0, 0, outW, outH);
+        ctx.drawImage(lastFrameCanvas, 0, 0);
+      } else {
+        const frame = await decoder.requestFrame(
+          clip.file,
+          Math.min(sourceTime, clip.trimOut - 0.001)
+        );
+
+        // Render video frame + effects onto an OffscreenCanvas at output size
+        canvas = new OffscreenCanvas(outW, outH);
+
+        if (frame) {
+          // FrameRenderer sizes canvas to crop dimensions; we want outW×outH,
+          // so we render to a temp canvas first then scale into our target.
+          const tmp = new OffscreenCanvas(1, 1);
+          renderer.renderFrame(frame, tmp, effects);
+          frame.close();
+
+          const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+          ctx.drawImage(tmp, 0, 0, outW, outH);
+        }
+
+        // Cache this frame for potential freeze repeats
+        lastFrameCanvas = canvas;
       }
 
       const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
 
-      // Composite annotation strokes
-      if (strokes.length > 0) drawStrokes(ctx, strokes, outW, outH);
+      // Composite annotation strokes — only those visible at this frame time
+      const visibleStrokes = strokes.filter(
+        (s) => s.startTime <= frameTime && frameTime < s.endTime
+      );
+      if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
 
-      // Composite sticker / text overlays
-      if (overlays.length > 0) await drawOverlays(ctx, overlays, outW, outH);
+      // Composite sticker / text overlays — only those visible at this frame time
+      const visibleOverlays = overlays.filter(
+        (o) => o.startTime <= frameTime && frameTime < o.endTime
+      );
+      if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
 
       // Write JPEG frame to FFmpeg FS
       const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
@@ -201,16 +311,92 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   onProgress(70);
 
+  // ── Prepare voice overlay audio ──────────────────────────────────────────
+  // We use WAV (PCM) format because FFmpeg WASM may not have codecs for
+  // webm/opus. WAV is universally supported by FFmpeg.
+  // IMPORTANT: We avoid -itsoffset and FFmpeg concat entirely because they
+  // can fail in FFmpeg WASM. Instead we:
+  //   1. Convert each voice blob to WAV PCM via Web Audio API
+  //   2. Pad each WAV with silence at the browser level to match timeline position
+  //   3. Merge all WAV PCM data in JavaScript (keep first header, append PCM data)
+  //   4. Write the single merged WAV directly to FFmpeg FS
+  const voiceOverlays = overlays.filter((o): o is VoiceOverlay => o.type === "voice");
+  let hasAudioInput = false;
+
+  if (voiceOverlays.length > 0) {
+    // Collect all padded WAV buffers
+    const wavBuffers: ArrayBuffer[] = [];
+
+    for (let vi = 0; vi < voiceOverlays.length; vi++) {
+      if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
+
+      const voice = voiceOverlays[vi];
+
+      try {
+        const resp = await fetch(voice.audioUrl);
+        if (!resp.ok) {
+          console.warn(`Voice overlay ${vi}: fetch failed with status ${resp.status}`);
+          continue;
+        }
+        const audioBlob = await resp.blob();
+
+        // Convert the blob (webm/opus) to WAV PCM using Web Audio API.
+        const wavBlob = await blobToWav(audioBlob);
+        const wavBuf = await wavBlob.arrayBuffer();
+
+        // Pad the WAV with silence at the beginning to match the timeline position.
+        const paddedWav = await padWavWithSilence(wavBuf, voice.startTime);
+
+        // Trim the WAV to end at the specified endTime.
+        // The padded WAV now starts at voice.startTime, so its total duration
+        // should be voice.endTime - voice.startTime of actual audio content.
+        const voiceDuration = voice.endTime - voice.startTime;
+        const trimmedWav = trimWavEnd(paddedWav, voice.endTime);
+
+        wavBuffers.push(trimmedWav);
+      } catch (err) {
+        console.warn(`Voice overlay ${vi}: conversion failed, skipping`, err);
+      }
+    }
+
+    // Merge all WAV buffers into one (keep first header, append only PCM data from rest)
+    if (wavBuffers.length > 0) {
+      try {
+        const mergedWav = mergeWavBuffers(wavBuffers);
+        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(mergedWav));
+        hasAudioInput = true;
+      } catch (err) {
+        console.warn("Voice merge failed, exporting without audio:", err);
+      }
+    }
+  }
+
   // ── Encode with FFmpeg ────────────────────────────────────────────────────
+  // IMPORTANT: All -i inputs must come first, then output options.
+  // FFmpeg is strict about option ordering — output options before all inputs
+  // will be misinterpreted as input options.
   const outputName = `output.${settings.format}`;
 
+  // Input options + inputs
   const args: string[] = [
     "-framerate", String(fps),
     "-i", "frame_%06d.jpg",
-    "-r", String(fps),
-    "-b:v", `${settings.bitrate}k`,
-    "-c:v", settings.format === "mp4" ? "libx264" : "libvpx-vp9",
   ];
+
+  // Add audio input if we have voice overlays (must come after video input)
+  if (hasAudioInput) {
+    args.push("-i", "voice_mixed.wav");
+  }
+
+  // Output options (all after inputs)
+  args.push("-r", String(fps));
+  args.push("-b:v", `${settings.bitrate}k`);
+  args.push("-c:v", settings.format === "mp4" ? "libx264" : "libvpx-vp9");
+
+  if (hasAudioInput) {
+    args.push("-c:a", "aac");
+    args.push("-shortest");
+  }
 
   if (settings.format === "mp4") {
     args.push("-pix_fmt", "yuv420p"); // required for H.264 compatibility
@@ -227,11 +413,19 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   try {
     await ffmpeg.exec(args);
+  } catch (err) {
+    console.error("[FFmpeg encode] Failed:", err);
+    throw err;
   } finally {
     ffmpeg.off("progress", onFFmpegProgress);
   }
 
   onProgress(96);
+
+  // Cleanup voice audio files
+  if (hasAudioInput) {
+    await ffmpeg.deleteFile("voice_mixed.wav").catch(() => {});
+  }
 
   const data = await ffmpeg.readFile(outputName);
   const result =

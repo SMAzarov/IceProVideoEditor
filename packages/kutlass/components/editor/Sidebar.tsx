@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 
-export type Tool = "trim" | "crop" | "finetune" | "filter" | "annotate" | "sticker" | "resize";
+export type Tool = "trim" | "crop" | "finetune" | "filter" | "annotate" | "sticker" | "resize" | "voice";
 
 interface SidebarProps {
   activeTool: Tool;
@@ -78,6 +78,15 @@ const TOOLS: { id: Tool; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3" />
+      </svg>
+    ),
+  },
+  {
+    id: "voice",
+    label: "Voice",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
       </svg>
     ),
   },

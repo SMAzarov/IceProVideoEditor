@@ -1,17 +1,28 @@
 "use client";
 
 import { useEditorStore } from "@/store/editorStore";
+import { DrawingTool } from "@/store/slices/drawingSlice";
 
 const COLORS = ["#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00cfff", "#ffffff", "#000000"];
 const WIDTHS = [2, 4, 8, 16];
+
+const TOOLS: { key: DrawingTool; label: string }[] = [
+  { key: "pen", label: "Pen" },
+  { key: "eraser", label: "Eraser" },
+  { key: "straight", label: "Line" },
+  { key: "arrow", label: "Arrow" },
+  { key: "curved", label: "Curve" },
+];
 
 export function AnnotatePanel() {
   const drawingTool = useEditorStore((s) => s.drawingTool);
   const drawingColor = useEditorStore((s) => s.drawingColor);
   const drawingWidth = useEditorStore((s) => s.drawingWidth);
+  const annotationDuration = useEditorStore((s) => s.annotationDuration);
   const setDrawingTool = useEditorStore((s) => s.setDrawingTool);
   const setDrawingColor = useEditorStore((s) => s.setDrawingColor);
   const setDrawingWidth = useEditorStore((s) => s.setDrawingWidth);
+  const setAnnotationDuration = useEditorStore((s) => s.setAnnotationDuration);
   const undoStroke = useEditorStore((s) => s.undoStroke);
   const clearStrokes = useEditorStore((s) => s.clearStrokes);
   const strokes = useEditorStore((s) => s.strokes);
@@ -23,27 +34,20 @@ export function AnnotatePanel() {
         {/* Tool selector */}
         <div className="flex flex-col gap-1">
           <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--kt-text-muted)" }}>Tool</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setDrawingTool("pen")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                drawingTool === "pen"
-                  ? "kt-btn-accent"
-                  : "kt-btn-subtle"
-              }`}
-            >
-              Pen
-            </button>
-            <button
-              onClick={() => setDrawingTool("eraser")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                drawingTool === "eraser"
-                  ? "kt-btn-accent"
-                  : "kt-btn-subtle"
-              }`}
-            >
-              Eraser
-            </button>
+          <div className="flex gap-1 flex-wrap">
+            {TOOLS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setDrawingTool(t.key)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  drawingTool === t.key
+                    ? "kt-btn-accent"
+                    : "kt-btn-subtle"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -85,6 +89,31 @@ export function AnnotatePanel() {
                 />
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Duration control */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--kt-text-muted)" }}>
+            Duration: {annotationDuration}s
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0.5}
+              max={10}
+              step={0.5}
+              value={annotationDuration}
+              onChange={(e) => setAnnotationDuration(parseFloat(e.target.value))}
+              className="w-20 h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{
+                background: "var(--kt-slider-track)",
+                accentColor: "var(--kt-accent)",
+              }}
+            />
+            <span className="text-xs tabular-nums" style={{ color: "var(--kt-text-secondary)", minWidth: 28 }}>
+              {annotationDuration.toFixed(1)}s
+            </span>
           </div>
         </div>
 

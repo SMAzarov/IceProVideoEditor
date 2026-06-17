@@ -1,0 +1,4131 @@
+"use client";
+"use strict";
+"use client";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/index.ts
+var index_exports = {};
+__export(index_exports, {
+  Kutlass: () => Kutlass,
+  setFFmpegPaths: () => setFFmpegPaths
+});
+module.exports = __toCommonJS(index_exports);
+
+// src/Kutlass.tsx
+var import_react15 = require("react");
+
+// components/editor/Editor.tsx
+var import_react14 = require("react");
+var import_framer_motion3 = require("framer-motion");
+
+// components/editor/TopBar.tsx
+var import_react3 = require("react");
+
+// store/editorStore.ts
+var import_zustand = require("zustand");
+
+// store/slices/timelineSlice.ts
+var import_nanoid = require("nanoid");
+var DEFAULT_TRACKS = [
+  { id: "track-video", type: "video", name: "Video", muted: false, locked: false },
+  { id: "track-audio", type: "audio", name: "Audio", muted: false, locked: false },
+  { id: "track-text", type: "text", name: "Text", muted: false, locked: false },
+  { id: "track-effects", type: "effects", name: "Effects", muted: false, locked: false }
+];
+var createTimelineSlice = (set, get) => ({
+  clips: [],
+  tracks: DEFAULT_TRACKS,
+  currentTime: 0,
+  duration: 0,
+  zoom: 80,
+  selectedClipId: null,
+  addClip: (clip) => set((state) => {
+    const newClip = __spreadProps(__spreadValues({}, clip), { id: (0, import_nanoid.nanoid)() });
+    const newClips = [...state.clips, newClip];
+    const duration = Math.max(...newClips.map((c) => c.startTime + c.duration), 0);
+    return { clips: newClips, duration };
+  }),
+  removeClip: (id) => set((state) => {
+    const newClips = state.clips.filter((c) => c.id !== id);
+    const duration = newClips.length > 0 ? Math.max(...newClips.map((c) => c.startTime + c.duration)) : 0;
+    return { clips: newClips, duration, selectedClipId: state.selectedClipId === id ? null : state.selectedClipId };
+  }),
+  updateClip: (id, updates) => set((state) => ({
+    clips: state.clips.map((c) => c.id === id ? __spreadValues(__spreadValues({}, c), updates) : c)
+  })),
+  moveClip: (id, startTime) => set((state) => {
+    const newClips = state.clips.map(
+      (c) => c.id === id ? __spreadProps(__spreadValues({}, c), { startTime: Math.max(0, startTime) }) : c
+    );
+    const duration = Math.max(...newClips.map((c) => c.startTime + c.duration));
+    return { clips: newClips, duration };
+  }),
+  trimClipStart: (id, newTrimIn, newStartTime, newDuration) => set((state) => {
+    const newClips = state.clips.map(
+      (c) => c.id === id ? __spreadProps(__spreadValues({}, c), { trimIn: newTrimIn, startTime: newStartTime, duration: newDuration }) : c
+    );
+    const clip = newClips.find((c) => c.id === id);
+    const currentTime = clip ? Math.max(clip.startTime, Math.min(state.currentTime, clip.startTime + clip.duration)) : state.currentTime;
+    return { clips: newClips, currentTime };
+  }),
+  trimClipEnd: (id, newTrimOut, newDuration) => set((state) => {
+    const newClips = state.clips.map(
+      (c) => c.id === id ? __spreadProps(__spreadValues({}, c), { trimOut: newTrimOut, duration: newDuration }) : c
+    );
+    const duration = Math.max(...newClips.map((c) => c.startTime + c.duration));
+    const clip = newClips.find((c) => c.id === id);
+    const currentTime = clip ? Math.max(clip.startTime, Math.min(state.currentTime, clip.startTime + clip.duration)) : state.currentTime;
+    return { clips: newClips, duration, currentTime };
+  }),
+  splitClipAt: (id, time) => set((state) => {
+    const clip = state.clips.find((c) => c.id === id);
+    if (!clip) return {};
+    const localTime = time - clip.startTime;
+    if (localTime <= 0 || localTime >= clip.duration) return {};
+    const firstHalf = __spreadProps(__spreadValues({}, clip), {
+      duration: localTime,
+      trimOut: clip.trimIn + localTime
+    });
+    const secondHalf = __spreadProps(__spreadValues({}, clip), {
+      id: (0, import_nanoid.nanoid)(),
+      startTime: time,
+      duration: clip.duration - localTime,
+      trimIn: clip.trimIn + localTime
+    });
+    return {
+      clips: state.clips.map((c) => c.id === id ? firstHalf : c).concat(secondHalf)
+    };
+  }),
+  setCurrentTime: (time) => set((state) => ({ currentTime: Math.max(0, Math.min(time, state.duration)) })),
+  setZoom: (zoom) => set(() => ({ zoom: Math.max(20, Math.min(300, zoom)) })),
+  setSelectedClip: (id) => set(() => ({ selectedClipId: id })),
+  recomputeDuration: () => set((state) => {
+    const duration = state.clips.length > 0 ? Math.max(...state.clips.map((c) => c.startTime + c.duration)) : 0;
+    return { duration };
+  })
+});
+
+// store/slices/playbackSlice.ts
+var createPlaybackSlice = (set) => ({
+  isPlaying: false,
+  fps: 30,
+  playbackRate: 1,
+  trimScrub: null,
+  setPlaying: (playing) => set(() => ({ isPlaying: playing })),
+  togglePlay: () => set((state) => ({ isPlaying: !state.isPlaying })),
+  setFps: (fps) => set(() => ({ fps })),
+  setPlaybackRate: (rate) => set(() => ({ playbackRate: rate })),
+  setTrimScrub: (scrub) => set(() => ({ trimScrub: scrub }))
+});
+
+// types/editor.ts
+var DEFAULT_EFFECTS = {
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+  rotation: 0,
+  cropX: 0,
+  cropY: 0,
+  cropW: 1,
+  cropH: 1,
+  opacity: 1,
+  speed: 1
+};
+var DEFAULT_EXPORT_SETTINGS = {
+  format: "mp4",
+  resolution: "720p",
+  fps: 30,
+  bitrate: 4e3
+};
+
+// store/slices/effectsSlice.ts
+var createEffectsSlice = (set, get) => ({
+  clipEffects: {},
+  cropToolActive: false,
+  setClipEffect: (clipId, key, value) => set((state) => {
+    var _a;
+    return {
+      clipEffects: __spreadProps(__spreadValues({}, state.clipEffects), {
+        [clipId]: __spreadProps(__spreadValues({}, (_a = state.clipEffects[clipId]) != null ? _a : DEFAULT_EFFECTS), {
+          [key]: value
+        })
+      })
+    };
+  }),
+  setClipEffects: (clipId, effects) => set((state) => {
+    var _a;
+    return {
+      clipEffects: __spreadProps(__spreadValues({}, state.clipEffects), {
+        [clipId]: __spreadValues(__spreadValues({}, (_a = state.clipEffects[clipId]) != null ? _a : DEFAULT_EFFECTS), effects)
+      })
+    };
+  }),
+  resetClipEffects: (clipId) => set((state) => {
+    const next = __spreadValues({}, state.clipEffects);
+    delete next[clipId];
+    return { clipEffects: next };
+  }),
+  getClipEffects: (clipId) => {
+    var _a;
+    const state = get();
+    return (_a = state.clipEffects[clipId]) != null ? _a : DEFAULT_EFFECTS;
+  },
+  setCropToolActive: (active) => set(() => ({ cropToolActive: active }))
+});
+
+// store/slices/exportSlice.ts
+var createExportSlice = (set) => ({
+  status: "idle",
+  progress: 0,
+  outputUrl: null,
+  error: null,
+  settings: DEFAULT_EXPORT_SETTINGS,
+  setExportStatus: (status) => set(() => ({ status })),
+  setExportProgress: (progress) => set(() => ({ progress })),
+  setOutputUrl: (outputUrl) => set(() => ({ outputUrl })),
+  setExportError: (error) => set(() => ({ error })),
+  updateExportSettings: (settings) => set((state) => ({ settings: __spreadValues(__spreadValues({}, state.settings), settings) })),
+  resetExport: () => set(() => ({ status: "idle", progress: 0, outputUrl: null, error: null }))
+});
+
+// store/slices/overlaysSlice.ts
+var import_nanoid2 = require("nanoid");
+var createOverlaysSlice = (set, get) => ({
+  overlays: [],
+  selectedOverlayId: null,
+  stickerDuration: 3,
+  addTextOverlay: (overlay) => {
+    var _a, _b;
+    const id = (0, import_nanoid2.nanoid)();
+    const currentTime = (_a = get().currentTime) != null ? _a : 0;
+    const annotationDuration = (_b = get().annotationDuration) != null ? _b : 3;
+    const endTime = currentTime + annotationDuration;
+    set((state) => ({
+      overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "text", startTime: currentTime, endTime })],
+      selectedOverlayId: id
+    }));
+    return id;
+  },
+  addStickerOverlay: (overlay) => {
+    var _a, _b;
+    const id = (0, import_nanoid2.nanoid)();
+    const currentTime = (_a = get().currentTime) != null ? _a : 0;
+    const stickerDuration = (_b = get().stickerDuration) != null ? _b : 3;
+    const endTime = currentTime + stickerDuration;
+    set((state) => ({
+      overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "sticker", startTime: currentTime, endTime })],
+      selectedOverlayId: id
+    }));
+    return id;
+  },
+  addVoiceOverlay: (overlay) => {
+    var _a;
+    const id = (0, import_nanoid2.nanoid)();
+    const currentTime = (_a = get().currentTime) != null ? _a : 0;
+    const endTime = currentTime + overlay.duration;
+    set((state) => ({
+      overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "voice", startTime: currentTime, endTime })],
+      selectedOverlayId: id
+    }));
+    return id;
+  },
+  updateOverlay: (id, updates) => set((state) => ({
+    overlays: state.overlays.map(
+      (o) => o.id === id ? __spreadValues(__spreadValues({}, o), updates) : o
+    )
+  })),
+  removeOverlay: (id) => set((state) => ({
+    overlays: state.overlays.filter((o) => o.id !== id),
+    selectedOverlayId: state.selectedOverlayId === id ? null : state.selectedOverlayId
+  })),
+  selectOverlay: (id) => set(() => ({ selectedOverlayId: id })),
+  clearOverlays: () => set(() => ({ overlays: [], selectedOverlayId: null })),
+  setStickerDuration: (duration) => set(() => ({ stickerDuration: duration }))
+});
+
+// store/slices/drawingSlice.ts
+function createDrawingSlice(set, get) {
+  return {
+    strokes: [],
+    drawingTool: "pen",
+    drawingColor: "#ff0000",
+    drawingWidth: 4,
+    annotationDuration: 3,
+    addStroke: (stroke) => {
+      var _a, _b;
+      const currentTime = (_a = get().currentTime) != null ? _a : 0;
+      const annotationDuration = (_b = get().annotationDuration) != null ? _b : 3;
+      const endTime = currentTime + annotationDuration;
+      set((s) => ({
+        strokes: [
+          ...s.strokes,
+          __spreadProps(__spreadValues({}, stroke), { startTime: currentTime, endTime })
+        ]
+      }));
+    },
+    undoStroke: () => set((s) => ({ strokes: s.strokes.slice(0, -1) })),
+    clearStrokes: () => set(() => ({ strokes: [] })),
+    setDrawingTool: (tool) => set(() => ({ drawingTool: tool })),
+    setDrawingColor: (color) => set(() => ({ drawingColor: color })),
+    setDrawingWidth: (width) => set(() => ({ drawingWidth: width })),
+    setAnnotationDuration: (duration) => set(() => ({ annotationDuration: duration }))
+  };
+}
+
+// store/slices/historySlice.ts
+var createHistorySlice = (set, get) => ({
+  past: [],
+  future: [],
+  captureHistory: () => {
+    const s = get();
+    const snapshot = {
+      clips: s.clips,
+      duration: s.duration,
+      clipEffects: s.clipEffects,
+      overlays: s.overlays
+    };
+    set(() => ({ past: [...s.past.slice(-49), snapshot], future: [] }));
+  },
+  undo: () => set((state) => {
+    if (state.past.length === 0) return {};
+    const entry = state.past[state.past.length - 1];
+    const current = {
+      clips: state.clips,
+      duration: state.duration,
+      clipEffects: state.clipEffects,
+      overlays: state.overlays
+    };
+    return __spreadValues({
+      past: state.past.slice(0, -1),
+      future: [current, ...state.future]
+    }, entry);
+  }),
+  redo: () => set((state) => {
+    if (state.future.length === 0) return {};
+    const entry = state.future[0];
+    const current = {
+      clips: state.clips,
+      duration: state.duration,
+      clipEffects: state.clipEffects,
+      overlays: state.overlays
+    };
+    return __spreadValues({
+      past: [...state.past, current],
+      future: state.future.slice(1)
+    }, entry);
+  })
+});
+
+// store/slices/freezeSlice.ts
+var import_nanoid3 = require("nanoid");
+var createFreezeSlice = (set) => ({
+  freezes: [],
+  addFreeze: (startTime, endTime) => {
+    const id = (0, import_nanoid3.nanoid)();
+    set((state) => ({
+      freezes: [...state.freezes, { id, startTime, endTime }]
+    }));
+    return id;
+  },
+  removeFreeze: (id) => set((state) => ({
+    freezes: state.freezes.filter((f) => f.id !== id)
+  })),
+  clearFreezes: () => set(() => ({ freezes: [] }))
+});
+
+// store/editorStore.ts
+var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
+  set,
+  get
+)), createExportSlice(set)), createOverlaysSlice(
+  set,
+  get
+)), createDrawingSlice(
+  set,
+  get
+)), createHistorySlice(
+  set,
+  get
+)), createFreezeSlice(set)));
+
+// hooks/useExport.ts
+var import_react = require("react");
+
+// lib/webcodecs/VideoDecoder.ts
+var ClipVideoDecoder = class {
+  constructor() {
+    this.video = null;
+    this.objectUrl = null;
+    this.loadedFile = null;
+    this.metadata = null;
+    this._muted = false;
+    this._audioBlocked = false;
+    // Serialise seek operations so concurrent requestFrame calls don't race.
+    this.seekChain = Promise.resolve();
+    // Incrementing this number aborts all in-flight seeks (e.g. when playback starts).
+    this.seekGeneration = 0;
+  }
+  async getMetadata(file) {
+    if (this.metadata && this.loadedFile === file) return this.metadata;
+    await this.ensureVideo(file);
+    return this.metadata;
+  }
+  requestFrame(file, timeSeconds) {
+    const gen = this.seekGeneration;
+    const result = this.seekChain.then(async () => {
+      if (this.seekGeneration !== gen) return null;
+      await this.ensureVideo(file);
+      if (this.seekGeneration !== gen) return null;
+      return this.capture(timeSeconds);
+    });
+    this.seekChain = result.then(() => {
+    }, () => {
+    });
+    return result;
+  }
+  /** Capture current frame without seeking — used during live playback. */
+  captureCurrentFrame() {
+    const video = this.video;
+    if (!video) return null;
+    return this.frameFromVideo(video, video.currentTime);
+  }
+  getVideoCurrentTime() {
+    var _a, _b;
+    return (_b = (_a = this.video) == null ? void 0 : _a.currentTime) != null ? _b : 0;
+  }
+  /** Start native video playback. Aborts any in-flight frame seeks first. */
+  async startPlayback(fromTime) {
+    const video = this.video;
+    if (!video) return;
+    this.seekGeneration++;
+    this.seekChain = Promise.resolve();
+    video.muted = this._muted;
+    video.currentTime = fromTime;
+    try {
+      await video.play();
+    } catch (e) {
+      video.muted = true;
+      try {
+        await video.play();
+        this._audioBlocked = true;
+      } catch (e2) {
+      }
+    }
+  }
+  get audioBlocked() {
+    return this._audioBlocked;
+  }
+  stopPlayback() {
+    var _a;
+    (_a = this.video) == null ? void 0 : _a.pause();
+  }
+  setMuted(muted) {
+    this._muted = muted;
+    if (this.video) this.video.muted = muted;
+  }
+  getMuted() {
+    return this._muted;
+  }
+  ensureVideo(file) {
+    if (this.video && this.loadedFile === file) return Promise.resolve();
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
+    return new Promise((resolve, reject) => {
+      this.objectUrl = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "auto";
+      video.playsInline = true;
+      video.muted = true;
+      video.src = this.objectUrl;
+      const onMeta = () => {
+        this.video = video;
+        this.loadedFile = file;
+        this.metadata = {
+          duration: video.duration,
+          width: video.videoWidth || 1280,
+          height: video.videoHeight || 720,
+          fps: 30,
+          codec: "browser-native"
+        };
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        reject(new Error(`Failed to load video: ${file.name}`));
+      };
+      const cleanup = () => {
+        video.removeEventListener("loadedmetadata", onMeta);
+        video.removeEventListener("error", onError);
+      };
+      video.addEventListener("loadedmetadata", onMeta);
+      video.addEventListener("error", onError);
+    });
+  }
+  capture(timeSeconds) {
+    const video = this.video;
+    if (!video) return Promise.resolve(null);
+    if (Math.abs(video.currentTime - timeSeconds) < 0.016) {
+      return Promise.resolve(this.frameFromVideo(video, timeSeconds));
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        video.removeEventListener("seeked", onSeeked);
+        resolve(this.frameFromVideo(video, timeSeconds));
+      }, 3e3);
+      const onSeeked = () => {
+        clearTimeout(timer);
+        resolve(this.frameFromVideo(video, timeSeconds));
+      };
+      video.addEventListener("seeked", onSeeked, { once: true });
+      video.currentTime = timeSeconds;
+    });
+  }
+  frameFromVideo(video, timeSeconds) {
+    try {
+      return new VideoFrame(video, { timestamp: Math.round(timeSeconds * 1e6) });
+    } catch (e) {
+      return this.frameFromCanvas(video, timeSeconds);
+    }
+  }
+  frameFromCanvas(video, timeSeconds) {
+    try {
+      const canvas = new OffscreenCanvas(video.videoWidth || 1280, video.videoHeight || 720);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(video, 0, 0);
+      return new VideoFrame(canvas, { timestamp: Math.round(timeSeconds * 1e6) });
+    } catch (e) {
+      return null;
+    }
+  }
+  dispose() {
+    var _a;
+    (_a = this.video) == null ? void 0 : _a.pause();
+    this.video = null;
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
+    }
+    this.metadata = null;
+    this.loadedFile = null;
+  }
+};
+var registry = /* @__PURE__ */ new Map();
+function getDecoderForFile(file) {
+  const key = `${file.name}::${file.size}::${file.lastModified}`;
+  if (!registry.has(key)) registry.set(key, new ClipVideoDecoder());
+  return registry.get(key);
+}
+
+// lib/webcodecs/FrameRenderer.ts
+var FrameRenderer = class {
+  renderFrame(frame, canvas, effects) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const srcX = effects.cropX * frame.displayWidth;
+    const srcY = effects.cropY * frame.displayHeight;
+    const srcW = effects.cropW * frame.displayWidth;
+    const srcH = effects.cropH * frame.displayHeight;
+    const w = Math.max(1, Math.round(srcW));
+    const h = Math.max(1, Math.round(srcH));
+    canvas.width = w;
+    canvas.height = h;
+    ctx.save();
+    ctx.globalAlpha = effects.opacity;
+    const filters = [];
+    if (effects.brightness !== 0) filters.push(`brightness(${1 + effects.brightness / 100})`);
+    if (effects.contrast !== 0) filters.push(`contrast(${1 + effects.contrast / 100})`);
+    if (effects.saturation !== 0) filters.push(`saturate(${1 + effects.saturation / 100})`);
+    ctx.filter = filters.length > 0 ? filters.join(" ") : "none";
+    if (effects.rotation !== 0) {
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(effects.rotation * Math.PI / 180);
+      ctx.translate(-w / 2, -h / 2);
+    }
+    ctx.drawImage(frame, srcX, srcY, srcW, srcH, 0, 0, w, h);
+    ctx.restore();
+  }
+  clear(canvas) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+};
+
+// lib/audioUtils.ts
+async function blobToWav(blob) {
+  const audioCtx = new AudioContext();
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  const numChannels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const length = audioBuffer.length;
+  const pcmData = new Float32Array(length);
+  for (let i = 0; i < length; i++) {
+    let sample = 0;
+    for (let ch = 0; ch < numChannels; ch++) {
+      sample += audioBuffer.getChannelData(ch)[i];
+    }
+    pcmData[i] = sample / numChannels;
+  }
+  audioCtx.close();
+  const numSamples = pcmData.length;
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + numSamples * 2, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, numSamples * 2, true);
+  let offset = 44;
+  for (let i = 0; i < numSamples; i++) {
+    const s = Math.max(-1, Math.min(1, pcmData[i]));
+    const val = s < 0 ? s * 32768 : s * 32767;
+    view.setInt16(offset, val, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+async function padWavWithSilence(wavBuf, padSeconds) {
+  if (padSeconds <= 0) return wavBuf;
+  const view = new DataView(wavBuf);
+  const sampleRate = view.getUint32(24, true);
+  const dataSize = view.getUint32(40, true);
+  const numSamples = dataSize / 2;
+  const padSamples = Math.round(sampleRate * padSeconds);
+  const padBytes = padSamples * 2;
+  const newDataSize = dataSize + padBytes;
+  const newBuf = new ArrayBuffer(44 + newDataSize);
+  const newView = new DataView(newBuf);
+  for (let i = 0; i < 44; i++) {
+    newView.setUint8(i, view.getUint8(i));
+  }
+  newView.setUint32(4, 36 + newDataSize, true);
+  newView.setUint32(40, newDataSize, true);
+  const src = new Uint8Array(wavBuf, 44, dataSize);
+  const dst = new Uint8Array(newBuf, 44 + padBytes, dataSize);
+  dst.set(src);
+  return newBuf;
+}
+function trimWavEnd(wavBuf, maxDurationSeconds) {
+  const view = new DataView(wavBuf);
+  const sampleRate = view.getUint32(24, true);
+  const dataSize = view.getUint32(40, true);
+  const numSamples = dataSize / 2;
+  const duration = numSamples / sampleRate;
+  if (duration <= maxDurationSeconds) return wavBuf;
+  const trimmedSamples = Math.round(sampleRate * maxDurationSeconds);
+  const trimmedDataSize = trimmedSamples * 2;
+  const newBuf = new ArrayBuffer(44 + trimmedDataSize);
+  const newView = new DataView(newBuf);
+  for (let i = 0; i < 44; i++) {
+    newView.setUint8(i, view.getUint8(i));
+  }
+  newView.setUint32(4, 36 + trimmedDataSize, true);
+  newView.setUint32(40, trimmedDataSize, true);
+  const src = new Uint8Array(wavBuf, 44, trimmedDataSize);
+  const dst = new Uint8Array(newBuf, 44, trimmedDataSize);
+  dst.set(src);
+  return newBuf;
+}
+function mergeWavBuffers(buffers) {
+  if (buffers.length === 0) throw new Error("No WAV buffers to merge");
+  if (buffers.length === 1) return buffers[0];
+  const firstView = new DataView(buffers[0]);
+  const sampleRate = firstView.getUint32(24, true);
+  const firstDataSize = firstView.getUint32(40, true);
+  let totalDataSize = firstDataSize;
+  for (let i = 1; i < buffers.length; i++) {
+    const view = new DataView(buffers[i]);
+    totalDataSize += view.getUint32(40, true);
+  }
+  const mergedBuf = new ArrayBuffer(44 + totalDataSize);
+  const mergedView = new DataView(mergedBuf);
+  for (let i = 0; i < 44; i++) {
+    mergedView.setUint8(i, firstView.getUint8(i));
+  }
+  mergedView.setUint32(4, 36 + totalDataSize, true);
+  mergedView.setUint32(40, totalDataSize, true);
+  let offset = 44;
+  for (const buf of buffers) {
+    const view = new DataView(buf);
+    const dataSize = view.getUint32(40, true);
+    const src = new Uint8Array(buf, 44, dataSize);
+    const dst = new Uint8Array(mergedBuf, offset, dataSize);
+    dst.set(src);
+    offset += dataSize;
+  }
+  return mergedBuf;
+}
+function writeString(view, offset, str) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
+// src/ffmpegConfig.ts
+var config = {
+  coreJS: "/ffmpeg/ffmpeg-core.js",
+  coreWasm: "/ffmpeg/ffmpeg-core.wasm"
+};
+function setFFmpegPaths(paths) {
+  Object.assign(config, paths);
+}
+function getFFmpegPaths() {
+  return config;
+}
+
+// lib/ffmpeg/ffmpegClient.ts
+var ffmpegInstance = null;
+var initPromise = null;
+async function getFFmpeg() {
+  if (ffmpegInstance) return ffmpegInstance;
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const { FFmpeg } = await import("@ffmpeg/ffmpeg");
+    const ffmpegUtil = await import("@ffmpeg/util");
+    const toBlobURL = ffmpegUtil.toBlobURL;
+    const ffmpeg = new FFmpeg();
+    ffmpeg.on("log", ({ message }) => {
+      console.log("[FFmpeg]", message);
+    });
+    const paths = getFFmpegPaths();
+    await ffmpeg.load({
+      coreURL: await toBlobURL(paths.coreJS, "text/javascript"),
+      wasmURL: await toBlobURL(paths.coreWasm, "application/wasm")
+    });
+    ffmpegInstance = ffmpeg;
+    return ffmpeg;
+  })();
+  return initPromise;
+}
+
+// lib/ffmpeg/exportPipeline.ts
+function drawArrowhead(ctx, fromX, fromY, toX, toY, headLength) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.save();
+  ctx.translate(toX, toY);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-headLength, -headLength * 0.4);
+  ctx.lineTo(-headLength, headLength * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+function drawStrokes(ctx, strokes, w, h) {
+  for (const stroke of strokes) {
+    if (stroke.points.length < 2) continue;
+    ctx.save();
+    const isEraser = stroke.tool === "eraser";
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const p0 = stroke.points[0];
+    const p1 = stroke.points[stroke.points.length - 1];
+    const x0 = p0.x * w;
+    const y0 = p0.y * h;
+    const x1 = p1.x * w;
+    const y1 = p1.y * h;
+    if (stroke.tool === "arrow" || stroke.tool === "straight") {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      if (stroke.tool === "arrow") {
+        ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
+        drawArrowhead(ctx, x0, y0, x1, y1, Math.max(12, stroke.width * 3));
+      }
+    } else if (stroke.tool === "curved") {
+      if (stroke.points.length >= 3) {
+        const cp = stroke.points[1];
+        const cx = cp.x * w;
+        const cy = cp.y * h;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.quadraticCurveTo(cx, cy, x1, y1);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x * w, stroke.points[i].y * h);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+async function drawOverlays(ctx, overlays, w, h) {
+  var _a;
+  for (const overlay of overlays) {
+    if (overlay.type === "voice") continue;
+    const o = overlay;
+    const px = o.x * w;
+    const py = o.y * h;
+    if (o.type === "text") {
+      const t = o;
+      const size = Math.round(t.fontSize / 720 * h);
+      ctx.save();
+      ctx.font = `${t.bold ? "bold " : ""}${size}px ${(_a = t.fontFamily) != null ? _a : "sans-serif"}`;
+      ctx.fillStyle = t.color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(t.text, px, py);
+      ctx.restore();
+    } else {
+      const s = o;
+      const baseSize = Math.round(80 * s.scale * (h / 720));
+      if (s.imageUrl) {
+        try {
+          const resp = await fetch(s.imageUrl);
+          const blob = await resp.blob();
+          const bmp = await createImageBitmap(blob);
+          ctx.save();
+          ctx.drawImage(bmp, px - baseSize / 2, py - baseSize / 2, baseSize, baseSize);
+          bmp.close();
+          ctx.restore();
+        } catch (e) {
+        }
+      } else if (s.emoji) {
+        const size = Math.round(60 * s.scale * (h / 720));
+        ctx.save();
+        ctx.font = `${size}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(s.emoji, px, py);
+        ctx.restore();
+      }
+    }
+  }
+}
+function getOutputSize(clip, effects, resolution) {
+  const cropW = Math.round(clip.width * effects.cropW);
+  const cropH = Math.round(clip.height * effects.cropH);
+  if (resolution === "original") return { w: cropW, h: cropH };
+  const targets = {
+    "1080p": { w: 1920, h: 1080 },
+    "720p": { w: 1280, h: 720 },
+    "480p": { w: 854, h: 480 }
+  };
+  const target = targets[resolution];
+  if (!target) return { w: cropW, h: cropH };
+  const aspect = cropW / cropH;
+  let w = target.w;
+  let h = Math.round(w / aspect);
+  if (h > target.h) {
+    h = target.h;
+    w = Math.round(h * aspect);
+  }
+  return { w: w & ~1, h: h & ~1 };
+}
+async function runExport(job) {
+  var _a, _b, _c;
+  const { clips, settings, effectsMap, strokes, overlays, freezes, onProgress, signal } = job;
+  const ffmpeg = await getFFmpeg();
+  const renderer2 = new FrameRenderer();
+  const fps = settings.fps;
+  const firstClip = clips[0];
+  const firstEffects = (_a = effectsMap[firstClip.id]) != null ? _a : DEFAULT_EFFECTS;
+  const { w: outW, h: outH } = getOutputSize(firstClip, firstEffects, settings.resolution);
+  onProgress(2);
+  let globalFrameIdx = 0;
+  const totalFrames = clips.reduce((sum, c) => {
+    var _a2, _b2;
+    const effects = (_a2 = effectsMap[c.id]) != null ? _a2 : DEFAULT_EFFECTS;
+    const speed = (_b2 = effects.speed) != null ? _b2 : 1;
+    return sum + Math.ceil(c.duration * fps / speed);
+  }, 0);
+  let lastFrameCanvas = null;
+  for (const clip of clips) {
+    const effects = (_b = effectsMap[clip.id]) != null ? _b : DEFAULT_EFFECTS;
+    const speed = (_c = effects.speed) != null ? _c : 1;
+    const decoder = getDecoderForFile(clip.file);
+    const sourceFrameCount = Math.ceil(clip.duration * fps);
+    const outputFrameCount = Math.ceil(clip.duration * fps / speed);
+    for (let outIdx = 0; outIdx < outputFrameCount; outIdx++) {
+      if (signal == null ? void 0 : signal.aborted) throw new DOMException("Export cancelled", "AbortError");
+      const srcIdx = Math.min(
+        Math.floor(outIdx * speed),
+        sourceFrameCount - 1
+      );
+      const sourceTime = clip.trimIn + srcIdx / fps;
+      const frameTime = clip.startTime + outIdx / fps * speed;
+      const isFrozen = freezes.some(
+        (f) => frameTime >= f.startTime && frameTime < f.endTime
+      );
+      let canvas;
+      if (isFrozen && lastFrameCanvas) {
+        canvas = new OffscreenCanvas(outW, outH);
+        const ctx2 = canvas.getContext("2d");
+        ctx2.drawImage(lastFrameCanvas, 0, 0);
+      } else {
+        const frame = await decoder.requestFrame(
+          clip.file,
+          Math.min(sourceTime, clip.trimOut - 1e-3)
+        );
+        canvas = new OffscreenCanvas(outW, outH);
+        if (frame) {
+          const tmp = new OffscreenCanvas(1, 1);
+          renderer2.renderFrame(frame, tmp, effects);
+          frame.close();
+          const ctx2 = canvas.getContext("2d");
+          ctx2.drawImage(tmp, 0, 0, outW, outH);
+        }
+        lastFrameCanvas = canvas;
+      }
+      const ctx = canvas.getContext("2d");
+      const visibleStrokes = strokes.filter(
+        (s) => s.startTime <= frameTime && frameTime < s.endTime
+      );
+      if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
+      const visibleOverlays = overlays.filter(
+        (o) => o.startTime <= frameTime && frameTime < o.endTime
+      );
+      if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
+      const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
+      const frameName = `frame_${String(globalFrameIdx).padStart(6, "0")}.jpg`;
+      await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
+      globalFrameIdx++;
+      onProgress(2 + Math.round(globalFrameIdx / totalFrames * 68));
+    }
+  }
+  onProgress(70);
+  const voiceOverlays = overlays.filter((o) => o.type === "voice");
+  let hasAudioInput = false;
+  if (voiceOverlays.length > 0) {
+    const wavBuffers = [];
+    for (let vi = 0; vi < voiceOverlays.length; vi++) {
+      if (signal == null ? void 0 : signal.aborted) throw new DOMException("Export cancelled", "AbortError");
+      const voice = voiceOverlays[vi];
+      try {
+        const resp = await fetch(voice.audioUrl);
+        if (!resp.ok) {
+          console.warn(`Voice overlay ${vi}: fetch failed with status ${resp.status}`);
+          continue;
+        }
+        const audioBlob = await resp.blob();
+        const wavBlob = await blobToWav(audioBlob);
+        const wavBuf = await wavBlob.arrayBuffer();
+        const paddedWav = await padWavWithSilence(wavBuf, voice.startTime);
+        const voiceDuration = voice.endTime - voice.startTime;
+        const trimmedWav = trimWavEnd(paddedWav, voice.endTime);
+        wavBuffers.push(trimmedWav);
+      } catch (err) {
+        console.warn(`Voice overlay ${vi}: conversion failed, skipping`, err);
+      }
+    }
+    if (wavBuffers.length > 0) {
+      try {
+        const mergedWav = mergeWavBuffers(wavBuffers);
+        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(mergedWav));
+        hasAudioInput = true;
+      } catch (err) {
+        console.warn("Voice merge failed, exporting without audio:", err);
+      }
+    }
+  }
+  const outputName = `output.${settings.format}`;
+  const args = [
+    "-framerate",
+    String(fps),
+    "-i",
+    "frame_%06d.jpg"
+  ];
+  if (hasAudioInput) {
+    args.push("-i", "voice_mixed.wav");
+  }
+  args.push("-r", String(fps));
+  args.push("-b:v", `${settings.bitrate}k`);
+  args.push("-c:v", settings.format === "mp4" ? "libx264" : "libvpx-vp9");
+  if (hasAudioInput) {
+    args.push("-c:a", "aac");
+    args.push("-shortest");
+  }
+  if (settings.format === "mp4") {
+    args.push("-pix_fmt", "yuv420p");
+    args.push("-preset", "fast");
+    args.push("-movflags", "+faststart");
+  }
+  args.push("-y", outputName);
+  const onFFmpegProgress = ({ progress }) => {
+    onProgress(70 + Math.round(progress * 25));
+  };
+  ffmpeg.on("progress", onFFmpegProgress);
+  try {
+    await ffmpeg.exec(args);
+  } catch (err) {
+    console.error("[FFmpeg encode] Failed:", err);
+    throw err;
+  } finally {
+    ffmpeg.off("progress", onFFmpegProgress);
+  }
+  onProgress(96);
+  if (hasAudioInput) {
+    await ffmpeg.deleteFile("voice_mixed.wav").catch(() => {
+    });
+  }
+  const data = await ffmpeg.readFile(outputName);
+  const result = data instanceof Uint8Array ? data : new TextEncoder().encode(data);
+  for (let i = 0; i < globalFrameIdx; i++) {
+    const name = `frame_${String(i).padStart(6, "0")}.jpg`;
+    await ffmpeg.deleteFile(name).catch(() => {
+    });
+  }
+  await ffmpeg.deleteFile(outputName).catch(() => {
+  });
+  onProgress(100);
+  return result;
+}
+
+// hooks/useExport.ts
+var activeController = null;
+function useExport() {
+  const clips = useEditorStore((s) => s.clips);
+  const settings = useEditorStore((s) => s.settings);
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const strokes = useEditorStore((s) => s.strokes);
+  const overlays = useEditorStore((s) => s.overlays);
+  const freezes = useEditorStore((s) => s.freezes);
+  const setExportStatus = useEditorStore((s) => s.setExportStatus);
+  const setExportProgress = useEditorStore((s) => s.setExportProgress);
+  const setOutputUrl = useEditorStore((s) => s.setOutputUrl);
+  const setExportError = useEditorStore((s) => s.setExportError);
+  const resetExport = useEditorStore((s) => s.resetExport);
+  const startExport = (0, import_react.useCallback)(async () => {
+    const videoClips = clips.filter((c) => c.trackId === "track-video");
+    if (videoClips.length === 0) return;
+    useEditorStore.getState().setPlaying(false);
+    for (const clip of videoClips) {
+      getDecoderForFile(clip.file).stopPlayback();
+    }
+    activeController == null ? void 0 : activeController.abort();
+    const controller = new AbortController();
+    activeController = controller;
+    resetExport();
+    setExportStatus("preparing");
+    try {
+      const data = await runExport({
+        clips: videoClips,
+        settings,
+        effectsMap: clipEffects,
+        strokes,
+        overlays,
+        freezes,
+        signal: controller.signal,
+        onProgress: (p) => {
+          if (controller.signal.aborted) return;
+          setExportProgress(p);
+          if (p > 10) setExportStatus("encoding");
+        }
+      });
+      if (controller.signal.aborted) return;
+      const mimeType = settings.format === "mp4" ? "video/mp4" : "video/webm";
+      const blob = new Blob([data.buffer], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      setOutputUrl(url);
+      setExportStatus("done");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      console.error("Export failed:", err);
+      setExportError(err instanceof Error ? err.message : "Export failed");
+      setExportStatus("error");
+    }
+  }, [clips, settings, clipEffects, strokes, overlays, freezes, resetExport, setExportStatus, setExportProgress, setOutputUrl, setExportError]);
+  const cancelExport = (0, import_react.useCallback)(() => {
+    activeController == null ? void 0 : activeController.abort();
+    activeController = null;
+    resetExport();
+  }, [resetExport]);
+  const downloadExport = (0, import_react.useCallback)(
+    (url) => {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kutlass-export.${settings.format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },
+    [settings.format]
+  );
+  return { startExport, downloadExport, cancelExport };
+}
+
+// hooks/useVideoImport.ts
+var import_react2 = require("react");
+var SUPPORTED_FORMATS = ["video/mp4", "video/webm", "video/quicktime", "video/x-matroska"];
+function useVideoImport() {
+  const addClip = useEditorStore((s) => s.addClip);
+  const removeClip = useEditorStore((s) => s.removeClip);
+  const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
+  const clearStrokes = useEditorStore((s) => s.clearStrokes);
+  const clearOverlays = useEditorStore((s) => s.clearOverlays);
+  const resetExport = useEditorStore((s) => s.resetExport);
+  const importFile = (0, import_react2.useCallback)(async (file) => {
+    if (!SUPPORTED_FORMATS.includes(file.type) && !file.name.match(/\.(mp4|webm|mov|mkv)$/i)) {
+      console.warn("Unsupported file type:", file.type);
+      return;
+    }
+    try {
+      const decoder = getDecoderForFile(file);
+      const metadata = await decoder.getMetadata(file);
+      const initialThumbnails = [];
+      try {
+        const seekTo = Math.min(0.1, metadata.duration * 0.05);
+        const frame = await decoder.requestFrame(file, seekTo);
+        if (frame) {
+          const thumbW = 320;
+          const thumbH = Math.round(thumbW * (metadata.height / metadata.width));
+          const canvas = document.createElement("canvas");
+          canvas.width = thumbW;
+          canvas.height = thumbH;
+          const ctx = canvas.getContext("2d");
+          if (ctx) ctx.drawImage(frame, 0, 0, thumbW, thumbH);
+          frame.close();
+          initialThumbnails.push(canvas.toDataURL("image/jpeg", 0.75));
+        }
+      } catch (e) {
+      }
+      const existingEnd = useEditorStore.getState().duration;
+      const clip = {
+        trackId: "track-video",
+        name: file.name.replace(/\.[^.]+$/, ""),
+        file,
+        startTime: existingEnd,
+        duration: metadata.duration,
+        trimIn: 0,
+        trimOut: metadata.duration,
+        sourceDuration: metadata.duration,
+        width: metadata.width,
+        height: metadata.height,
+        fps: metadata.fps,
+        thumbnails: initialThumbnails
+      };
+      addClip(clip);
+    } catch (err) {
+      console.error("Failed to import video:", err);
+    }
+  }, [addClip]);
+  const importFiles = (0, import_react2.useCallback)(
+    (files) => {
+      Array.from(files).forEach(importFile);
+    },
+    [importFile]
+  );
+  const replaceImport = (0, import_react2.useCallback)(
+    (files) => {
+      const { clips } = useEditorStore.getState();
+      clips.forEach((c) => removeClip(c.id));
+      setCurrentTime(0);
+      clearStrokes();
+      clearOverlays();
+      resetExport();
+      Array.from(files).forEach(importFile);
+    },
+    [importFile, removeClip, setCurrentTime, clearStrokes, clearOverlays, resetExport]
+  );
+  return { importFile, importFiles, replaceImport };
+}
+
+// components/editor/TopBar.tsx
+var import_jsx_runtime = require("react/jsx-runtime");
+function TopBar() {
+  const zoom = useEditorStore((s) => s.zoom);
+  const setZoom = useEditorStore((s) => s.setZoom);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const canUndo = useEditorStore((s) => s.past.length > 0);
+  const canRedo = useEditorStore((s) => s.future.length > 0);
+  const exportStatus = useEditorStore((s) => s.status);
+  const clips = useEditorStore((s) => s.clips);
+  const setPlaying = useEditorStore((s) => s.setPlaying);
+  const playbackRate = useEditorStore((s) => s.playbackRate);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const { startExport } = useExport();
+  const { replaceImport } = useVideoImport();
+  const fileInputRef = (0, import_react3.useRef)(null);
+  const isExporting = exportStatus === "preparing" || exportStatus === "encoding";
+  const hasClips = clips.length > 0;
+  const zoomPercent = Math.round(zoom / 80 * 100);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center h-11 px-2 md:px-3 shrink-0 border-b", style: { borderColor: "var(--kt-border)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-0.5 md:gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: undo,
+          disabled: !canUndo,
+          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
+          title: "Undo (\u2318Z)",
+          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" }) })
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: redo,
+          disabled: !canRedo,
+          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
+          title: "Redo (\u2318\u21E7Z)",
+          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" }) })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mx-auto", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setZoom(zoom / 1.25),
+          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+          children: "-"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
+        zoomPercent,
+        "%"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setZoom(zoom * 1.25),
+          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+          children: "+"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
+          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+          title: "Slower ([)",
+          children: "\u2212"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "span",
+        {
+          className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
+          style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
+          children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "button",
+        {
+          onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
+          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+          title: "Faster (])",
+          children: "+"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1.5 md:gap-2", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+        "input",
+        {
+          ref: fileInputRef,
+          type: "file",
+          accept: "video/*",
+          className: "hidden",
+          onChange: (e) => {
+            var _a;
+            const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
+            if (files.length > 0) replaceImport(files);
+            e.target.value = "";
+          }
+        }
+      ),
+      hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+          "button",
+          {
+            onClick: () => {
+              var _a;
+              return (_a = fileInputRef.current) == null ? void 0 : _a.click();
+            },
+            className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
+            title: "Import new video",
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "hidden md:inline", children: "Import Video" }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "md:hidden", children: "Import" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "button",
+          {
+            disabled: isExporting,
+            onClick: () => {
+              setPlaying(false);
+              startExport();
+            },
+            className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+            children: "Done"
+          }
+        )
+      ] })
+    ] })
+  ] });
+}
+
+// components/editor/Sidebar.tsx
+var import_framer_motion = require("framer-motion");
+var import_jsx_runtime2 = require("react/jsx-runtime");
+var TOOLS = [
+  {
+    id: "trim",
+    label: "Trim",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "3", y: "5", width: "18", height: "14", rx: "1" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M3 9h18M3 15h18M9 5v14M15 5v14" })
+    ] })
+  },
+  {
+    id: "crop",
+    label: "Crop",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14" }) })
+  },
+  {
+    id: "finetune",
+    label: "Finetune",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "6", r: "2", fill: "currentColor", stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "15", cy: "12", r: "2", fill: "currentColor", stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "18", r: "2", fill: "currentColor", stroke: "none" })
+    ] })
+  },
+  {
+    id: "filter",
+    label: "Filter",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18" })
+    ] })
+  },
+  {
+    id: "annotate",
+    label: "Annotate",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z" }) })
+  },
+  {
+    id: "sticker",
+    label: "Sticker",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M9 9h.01M15 9h.01M9 14s1 2 3 2 3-2 3-2" })
+    ] })
+  },
+  {
+    id: "resize",
+    label: "Resize",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3" }) })
+  },
+  {
+    id: "voice",
+    label: "Voice",
+    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" }) })
+  }
+];
+function Sidebar({ activeTool, onToolChange, horizontal }) {
+  if (horizontal) {
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "flex shrink-0 border-t px-1 py-1 gap-0.5 overflow-x-auto", style: { borderColor: "var(--kt-border)" }, children: TOOLS.map((tool) => {
+      const isActive = activeTool === tool.id;
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+        "button",
+        {
+          onClick: () => onToolChange(tool.id),
+          className: "relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 kt-tool-btn",
+          style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+          children: [
+            isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              import_framer_motion.motion.div,
+              {
+                layoutId: "sidebar-active-h",
+                className: "absolute inset-0 rounded-lg",
+                style: { background: "var(--kt-bg-subtle-hover)" },
+                transition: { type: "spring", stiffness: 400, damping: 35 }
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[9px] font-medium leading-none", children: tool.label })
+          ]
+        },
+        tool.id
+      );
+    }) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "flex flex-col w-[72px] shrink-0 border-r py-2 gap-1", style: { borderColor: "var(--kt-border)" }, children: TOOLS.map((tool) => {
+    const isActive = activeTool === tool.id;
+    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+      "button",
+      {
+        onClick: () => onToolChange(tool.id),
+        className: "relative flex flex-col items-center gap-1 py-2.5 mx-1.5 rounded-xl transition-colors kt-tool-btn",
+        style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+        children: [
+          isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+            import_framer_motion.motion.div,
+            {
+              layoutId: "sidebar-active",
+              className: "absolute inset-0 rounded-xl",
+              style: { background: "var(--kt-bg-subtle-hover)" },
+              transition: { type: "spring", stiffness: 400, damping: 35 }
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[10px] font-medium leading-none", children: tool.label })
+        ]
+      },
+      tool.id
+    );
+  }) });
+}
+
+// components/editor/preview/PreviewPanel.tsx
+var import_react9 = require("react");
+var import_framer_motion2 = require("framer-motion");
+
+// components/editor/preview/PreviewCanvas.tsx
+var import_react4 = require("react");
+var import_jsx_runtime3 = require("react/jsx-runtime");
+var PreviewCanvas = (0, import_react4.forwardRef)(
+  function PreviewCanvas2(_props, ref) {
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      "canvas",
+      {
+        ref,
+        className: "w-full h-full"
+      }
+    );
+  }
+);
+
+// components/editor/preview/CropOverlay.tsx
+var import_react5 = require("react");
+var import_jsx_runtime4 = require("react/jsx-runtime");
+function CropOverlay() {
+  var _a, _b, _c;
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const clips = useEditorStore((s) => s.clips);
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const setClipEffects = useEditorStore((s) => s.setClipEffects);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const targetId = (_b = selectedClipId != null ? selectedClipId : (_a = clips.find((c) => c.trackId === "track-video")) == null ? void 0 : _a.id) != null ? _b : null;
+  const effects = targetId ? (_c = clipEffects[targetId]) != null ? _c : DEFAULT_EFFECTS : DEFAULT_EFFECTS;
+  const containerRef = (0, import_react5.useRef)(null);
+  const dragRef = (0, import_react5.useRef)(null);
+  const onPointerDown = (0, import_react5.useCallback)(
+    (handle) => (e) => {
+      if (!targetId) return;
+      e.stopPropagation();
+      captureHistory();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragRef.current = {
+        handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        startEffects: __spreadValues({}, effects)
+      };
+    },
+    [targetId, effects, captureHistory]
+  );
+  const onPointerMove = (0, import_react5.useCallback)(
+    (e) => {
+      if (!dragRef.current || !containerRef.current || !targetId) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = (e.clientX - dragRef.current.startX) / rect.width;
+      const dy = (e.clientY - dragRef.current.startY) / rect.height;
+      const s = dragRef.current.startEffects;
+      let { cropX: cropX2, cropY: cropY2, cropW: cropW2, cropH: cropH2 } = s;
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const MIN_SIZE = 0.05;
+      switch (dragRef.current.handle) {
+        case "move": {
+          cropX2 = clamp(s.cropX + dx, 0, 1 - s.cropW);
+          cropY2 = clamp(s.cropY + dy, 0, 1 - s.cropH);
+          break;
+        }
+        case "nw": {
+          const newX = clamp(s.cropX + dx, 0, s.cropX + s.cropW - MIN_SIZE);
+          const newY = clamp(s.cropY + dy, 0, s.cropY + s.cropH - MIN_SIZE);
+          cropW2 = s.cropW - (newX - s.cropX);
+          cropH2 = s.cropH - (newY - s.cropY);
+          cropX2 = newX;
+          cropY2 = newY;
+          break;
+        }
+        case "ne": {
+          const newY = clamp(s.cropY + dy, 0, s.cropY + s.cropH - MIN_SIZE);
+          cropW2 = clamp(s.cropW + dx, MIN_SIZE, 1 - s.cropX);
+          cropH2 = s.cropH - (newY - s.cropY);
+          cropY2 = newY;
+          break;
+        }
+        case "sw": {
+          const newX = clamp(s.cropX + dx, 0, s.cropX + s.cropW - MIN_SIZE);
+          cropW2 = s.cropW - (newX - s.cropX);
+          cropH2 = clamp(s.cropH + dy, MIN_SIZE, 1 - s.cropY);
+          cropX2 = newX;
+          break;
+        }
+        case "se": {
+          cropW2 = clamp(s.cropW + dx, MIN_SIZE, 1 - s.cropX);
+          cropH2 = clamp(s.cropH + dy, MIN_SIZE, 1 - s.cropY);
+          break;
+        }
+        case "n": {
+          const newY = clamp(s.cropY + dy, 0, s.cropY + s.cropH - MIN_SIZE);
+          cropH2 = s.cropH - (newY - s.cropY);
+          cropY2 = newY;
+          break;
+        }
+        case "s": {
+          cropH2 = clamp(s.cropH + dy, MIN_SIZE, 1 - s.cropY);
+          break;
+        }
+        case "w": {
+          const newX = clamp(s.cropX + dx, 0, s.cropX + s.cropW - MIN_SIZE);
+          cropW2 = s.cropW - (newX - s.cropX);
+          cropX2 = newX;
+          break;
+        }
+        case "e": {
+          cropW2 = clamp(s.cropW + dx, MIN_SIZE, 1 - s.cropX);
+          break;
+        }
+      }
+      setClipEffects(targetId, { cropX: cropX2, cropY: cropY2, cropW: cropW2, cropH: cropH2 });
+    },
+    [targetId, setClipEffects]
+  );
+  const onPointerUp = (0, import_react5.useCallback)(() => {
+    dragRef.current = null;
+  }, []);
+  const { cropX, cropY, cropW, cropH } = effects;
+  const x = cropX * 100;
+  const y = cropY * 100;
+  const w = cropW * 100;
+  const h = cropH * 100;
+  const handleStyle = (cursor) => ({
+    position: "absolute",
+    width: 12,
+    height: 12,
+    background: "var(--kt-slider-thumb)",
+    border: "2px solid var(--kt-accent-strong-border)",
+    borderRadius: 2,
+    cursor,
+    transform: "translate(-50%, -50%)",
+    zIndex: 30
+  });
+  const EDGE_HIT = 16;
+  const edgeStyle = (cursor, extra) => __spreadValues({
+    position: "absolute",
+    background: "transparent",
+    cursor,
+    zIndex: 30
+  }, extra);
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+    "div",
+    {
+      ref: containerRef,
+      className: "absolute inset-0",
+      onPointerMove,
+      onPointerUp,
+      style: { zIndex: 20 },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute pointer-events-none", style: { top: 0, left: 0, right: 0, height: `${y}%`, background: "var(--kt-crop-mask)" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute pointer-events-none", style: { bottom: 0, left: 0, right: 0, height: `${100 - y - h}%`, background: "var(--kt-crop-mask)" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute pointer-events-none", style: { top: `${y}%`, left: 0, width: `${x}%`, height: `${h}%`, background: "var(--kt-crop-mask)" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute pointer-events-none", style: { top: `${y}%`, right: 0, width: `${100 - x - w}%`, height: `${h}%`, background: "var(--kt-crop-mask)" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            className: "absolute",
+            style: {
+              left: `${x}%`,
+              top: `${y}%`,
+              width: `${w}%`,
+              height: `${h}%`,
+              border: "2px solid var(--kt-accent-strong-border)",
+              boxSizing: "border-box",
+              cursor: "move",
+              zIndex: 22
+            },
+            onPointerDown: onPointerDown("move"),
+            children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "absolute inset-0 pointer-events-none", style: { opacity: 0.3 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute", style: { background: "var(--kt-border-input)", left: "33.3%", top: 0, bottom: 0, width: 1 } }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute", style: { background: "var(--kt-border-input)", left: "66.6%", top: 0, bottom: 0, width: 1 } }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute", style: { background: "var(--kt-border-input)", top: "33.3%", left: 0, right: 0, height: 1 } }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "absolute", style: { background: "var(--kt-border-input)", top: "66.6%", left: 0, right: 0, height: 1 } })
+            ] })
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: __spreadProps(__spreadValues({}, handleStyle("nw-resize")), { left: `${x}%`, top: `${y}%` }), onPointerDown: onPointerDown("nw") }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: __spreadProps(__spreadValues({}, handleStyle("ne-resize")), { left: `${x + w}%`, top: `${y}%` }), onPointerDown: onPointerDown("ne") }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: __spreadProps(__spreadValues({}, handleStyle("sw-resize")), { left: `${x}%`, top: `${y + h}%` }), onPointerDown: onPointerDown("sw") }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: __spreadProps(__spreadValues({}, handleStyle("se-resize")), { left: `${x + w}%`, top: `${y + h}%` }), onPointerDown: onPointerDown("se") }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            style: edgeStyle("n-resize", { left: `${x}%`, top: `calc(${y}% - ${EDGE_HIT / 2}px)`, width: `${w}%`, height: EDGE_HIT }),
+            onPointerDown: onPointerDown("n")
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            style: edgeStyle("s-resize", { left: `${x}%`, top: `calc(${y + h}% - ${EDGE_HIT / 2}px)`, width: `${w}%`, height: EDGE_HIT }),
+            onPointerDown: onPointerDown("s")
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            style: edgeStyle("w-resize", { left: `calc(${x}% - ${EDGE_HIT / 2}px)`, top: `${y}%`, width: EDGE_HIT, height: `${h}%` }),
+            onPointerDown: onPointerDown("w")
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          "div",
+          {
+            style: edgeStyle("e-resize", { left: `calc(${x + w}% - ${EDGE_HIT / 2}px)`, top: `${y}%`, width: EDGE_HIT, height: `${h}%` }),
+            onPointerDown: onPointerDown("e")
+          }
+        )
+      ]
+    }
+  );
+}
+
+// components/editor/preview/OverlayLayer.tsx
+var import_react6 = require("react");
+var import_jsx_runtime5 = require("react/jsx-runtime");
+function OverlayLayer() {
+  const overlays = useEditorStore((s) => s.overlays);
+  const selectedOverlayId = useEditorStore((s) => s.selectedOverlayId);
+  const selectOverlay = useEditorStore((s) => s.selectOverlay);
+  const updateOverlay = useEditorStore((s) => s.updateOverlay);
+  const removeOverlay = useEditorStore((s) => s.removeOverlay);
+  const [visibleOverlays, setVisibleOverlays] = (0, import_react6.useState)(() => {
+    const { currentTime } = useEditorStore.getState();
+    return overlays.filter(
+      (o) => o.startTime <= currentTime && currentTime < o.endTime
+    );
+  });
+  (0, import_react6.useEffect)(() => {
+    const unsub = useEditorStore.subscribe(() => {
+      const { currentTime } = useEditorStore.getState();
+      const { overlays: allOverlays } = useEditorStore.getState();
+      setVisibleOverlays(
+        allOverlays.filter(
+          (o) => o.startTime <= currentTime && currentTime < o.endTime
+        )
+      );
+    });
+    return unsub;
+  }, []);
+  const containerRef = (0, import_react6.useRef)(null);
+  const dragRef = (0, import_react6.useRef)(null);
+  const onPointerDown = (0, import_react6.useCallback)(
+    (overlay) => (e) => {
+      e.stopPropagation();
+      selectOverlay(overlay.id);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      dragRef.current = {
+        id: overlay.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        startOX: overlay.x,
+        startOY: overlay.y
+      };
+    },
+    [selectOverlay]
+  );
+  const onPointerMove = (0, import_react6.useCallback)(
+    (e) => {
+      if (!dragRef.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = (e.clientX - dragRef.current.startX) / rect.width;
+      const dy = (e.clientY - dragRef.current.startY) / rect.height;
+      const x = Math.max(0, Math.min(1, dragRef.current.startOX + dx));
+      const y = Math.max(0, Math.min(1, dragRef.current.startOY + dy));
+      updateOverlay(dragRef.current.id, { x, y });
+    },
+    [updateOverlay]
+  );
+  const onPointerUp = (0, import_react6.useCallback)(() => {
+    dragRef.current = null;
+  }, []);
+  if (visibleOverlays.length === 0) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+    "div",
+    {
+      ref: containerRef,
+      className: "absolute inset-0 pointer-events-none",
+      style: { zIndex: 15 },
+      onPointerMove,
+      onPointerUp,
+      children: visibleOverlays.map((overlay) => {
+        const isSelected = selectedOverlayId === overlay.id;
+        if (overlay.type === "text") {
+          const o = overlay;
+          return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+            "div",
+            {
+              className: "absolute pointer-events-auto select-none",
+              style: {
+                left: `${o.x * 100}%`,
+                top: `${o.y * 100}%`,
+                transform: "translate(-50%, -50%)",
+                cursor: "move",
+                outline: isSelected ? "2px solid var(--kt-accent)" : "none",
+                outlineOffset: 4,
+                borderRadius: 2,
+                padding: "2px 4px"
+              },
+              onPointerDown: onPointerDown(o),
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "span",
+                  {
+                    style: {
+                      fontFamily: o.fontFamily,
+                      fontSize: o.fontSize,
+                      color: o.color,
+                      fontWeight: o.bold ? "bold" : "normal",
+                      textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+                      whiteSpace: "nowrap",
+                      display: "block"
+                    },
+                    children: o.text
+                  }
+                ),
+                isSelected && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "button",
+                  {
+                    className: "absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center",
+                    style: { background: "var(--kt-danger-btn)", color: "var(--kt-text-primary)", fontSize: 10, pointerEvents: "auto" },
+                    onPointerDown: (e) => e.stopPropagation(),
+                    onClick: () => removeOverlay(o.id),
+                    children: "\xD7"
+                  }
+                )
+              ]
+            },
+            o.id
+          );
+        }
+        if (overlay.type === "sticker") {
+          const o = overlay;
+          const emojiSize = 48 * o.scale;
+          const imgSize = 80 * o.scale;
+          return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+            "div",
+            {
+              className: "absolute pointer-events-auto select-none",
+              style: {
+                left: `${o.x * 100}%`,
+                top: `${o.y * 100}%`,
+                transform: "translate(-50%, -50%)",
+                cursor: "move",
+                outline: isSelected ? "2px solid var(--kt-accent)" : "none",
+                outlineOffset: 4,
+                borderRadius: 4,
+                lineHeight: 1
+              },
+              onPointerDown: onPointerDown(o),
+              children: [
+                o.imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "img",
+                  {
+                    src: o.imageUrl,
+                    alt: "",
+                    style: {
+                      width: imgSize,
+                      height: imgSize,
+                      objectFit: "contain",
+                      display: "block",
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))",
+                      pointerEvents: "none"
+                    },
+                    draggable: false
+                  }
+                ) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "span",
+                  {
+                    style: {
+                      fontSize: emojiSize,
+                      display: "block",
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))"
+                    },
+                    children: o.emoji
+                  }
+                ),
+                isSelected && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                  "button",
+                  {
+                    className: "absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center",
+                    style: { background: "var(--kt-danger-btn)", color: "var(--kt-text-primary)", fontSize: 10, pointerEvents: "auto" },
+                    onPointerDown: (e) => e.stopPropagation(),
+                    onClick: () => removeOverlay(o.id),
+                    children: "\xD7"
+                  }
+                )
+              ]
+            },
+            o.id
+          );
+        }
+        return null;
+      })
+    }
+  );
+}
+
+// components/editor/preview/DrawingCanvas.tsx
+var import_react7 = require("react");
+var import_jsx_runtime6 = require("react/jsx-runtime");
+function drawArrowhead2(ctx, fromX, fromY, toX, toY, headLength) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  ctx.save();
+  ctx.translate(toX, toY);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-headLength, -headLength * 0.4);
+  ctx.lineTo(-headLength, headLength * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+function renderStrokes(ctx, strokes, w, h) {
+  ctx.clearRect(0, 0, w, h);
+  for (const stroke of strokes) {
+    if (stroke.points.length < 2) continue;
+    ctx.save();
+    const isEraser = stroke.tool === "eraser";
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    const p0 = stroke.points[0];
+    const p1 = stroke.points[stroke.points.length - 1];
+    const x0 = p0.x * w;
+    const y0 = p0.y * h;
+    const x1 = p1.x * w;
+    const y1 = p1.y * h;
+    if (stroke.tool === "arrow" || stroke.tool === "straight") {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+      if (stroke.tool === "arrow") {
+        ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : stroke.color;
+        drawArrowhead2(ctx, x0, y0, x1, y1, Math.max(12, stroke.width * 3));
+      }
+    } else if (stroke.tool === "curved") {
+      if (stroke.points.length >= 3) {
+        const cp = stroke.points[1];
+        const cx = cp.x * w;
+        const cy = cp.y * h;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.quadraticCurveTo(cx, cy, x1, y1);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x * w, stroke.points[i].y * h);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function DrawingCanvas({ isActive }) {
+  const canvasRef = (0, import_react7.useRef)(null);
+  const activeStrokeRef = (0, import_react7.useRef)([]);
+  const isDrawingRef = (0, import_react7.useRef)(false);
+  const startPointRef = (0, import_react7.useRef)(null);
+  const freezeStartRef = (0, import_react7.useRef)(0);
+  const drawingTool = useEditorStore((s) => s.drawingTool);
+  const drawingColor = useEditorStore((s) => s.drawingColor);
+  const drawingWidth = useEditorStore((s) => s.drawingWidth);
+  const addStroke = useEditorStore((s) => s.addStroke);
+  const setPlaying = useEditorStore((s) => s.setPlaying);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const addFreeze = useEditorStore((s) => s.addFreeze);
+  (0, import_react7.useEffect)(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const { strokes, currentTime } = useEditorStore.getState();
+    const visible = strokes.filter(
+      (s) => s.startTime <= currentTime && currentTime < s.endTime
+    );
+    renderStrokes(ctx, visible, canvas.width, canvas.height);
+    const unsub = useEditorStore.subscribe(() => {
+      const { strokes: s, currentTime: t } = useEditorStore.getState();
+      const v = s.filter(
+        (st) => st.startTime <= t && t < st.endTime
+      );
+      renderStrokes(ctx, v, canvas.width, canvas.height);
+    });
+    return unsub;
+  }, []);
+  const getRelative = (0, import_react7.useCallback)((e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height
+    };
+  }, []);
+  const onPointerDown = (0, import_react7.useCallback)(
+    (e) => {
+      if (!isActive) return;
+      setPlaying(false);
+      setPlaybackRate(0);
+      freezeStartRef.current = useEditorStore.getState().currentTime;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      isDrawingRef.current = true;
+      const pt = getRelative(e);
+      startPointRef.current = pt;
+      activeStrokeRef.current = [pt];
+    },
+    [isActive, getRelative, setPlaying, setPlaybackRate]
+  );
+  const onPointerMove = (0, import_react7.useCallback)(
+    (e) => {
+      if (!isDrawingRef.current || !isActive) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const pt = getRelative(e);
+      const { strokes, currentTime } = useEditorStore.getState();
+      const visibleStrokes = strokes.filter(
+        (s) => s.startTime <= currentTime && currentTime < s.endTime
+      );
+      if (drawingTool === "pen" || drawingTool === "eraser") {
+        activeStrokeRef.current.push(pt);
+        renderStrokes(ctx, visibleStrokes, canvas.width, canvas.height);
+        const pts = activeStrokeRef.current;
+        if (pts.length < 2) return;
+        ctx.save();
+        const isEraser = drawingTool === "eraser";
+        ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+        ctx.strokeStyle = isEraser ? "rgba(0,0,0,1)" : drawingColor;
+        ctx.lineWidth = drawingWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x * canvas.width, pts[0].y * canvas.height);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x * canvas.width, pts[i].y * canvas.height);
+        }
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        activeStrokeRef.current = [startPointRef.current, pt];
+        renderStrokes(ctx, visibleStrokes, canvas.width, canvas.height);
+        const p0 = startPointRef.current;
+        const x0 = p0.x * canvas.width;
+        const y0 = p0.y * canvas.height;
+        const x1 = pt.x * canvas.width;
+        const y1 = pt.y * canvas.height;
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = drawingColor;
+        ctx.lineWidth = drawingWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        if (drawingTool === "curved") {
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+          if (drawingTool === "arrow") {
+            ctx.fillStyle = drawingColor;
+            drawArrowhead2(ctx, x0, y0, x1, y1, Math.max(12, drawingWidth * 3));
+          }
+        }
+        ctx.restore();
+      }
+    },
+    [isActive, drawingTool, drawingColor, drawingWidth, getRelative]
+  );
+  const onPointerUp = (0, import_react7.useCallback)(
+    () => {
+      if (!isDrawingRef.current) return;
+      isDrawingRef.current = false;
+      const freezeEnd = useEditorStore.getState().currentTime;
+      if (freezeEnd > freezeStartRef.current) {
+        addFreeze(freezeStartRef.current, freezeEnd);
+      }
+      const pts = activeStrokeRef.current;
+      if (drawingTool === "pen" || drawingTool === "eraser") {
+        if (pts.length >= 2) {
+          addStroke({
+            id: crypto.randomUUID(),
+            tool: drawingTool,
+            color: drawingColor,
+            width: drawingWidth,
+            points: pts
+          });
+        }
+      } else if (drawingTool === "arrow" || drawingTool === "straight") {
+        if (pts.length >= 2) {
+          addStroke({
+            id: crypto.randomUUID(),
+            tool: drawingTool,
+            color: drawingColor,
+            width: drawingWidth,
+            points: pts
+          });
+        }
+      } else if (drawingTool === "curved") {
+        if (pts.length >= 2) {
+          const start = pts[0];
+          const end = pts[pts.length - 1];
+          let control;
+          if (pts.length >= 3) {
+            control = pts[Math.floor(pts.length / 2)];
+          } else {
+            const mx = (start.x + end.x) / 2;
+            const my = (start.y + end.y) / 2;
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const len = Math.sqrt(dx * dx + dy * dy) || 1;
+            control = { x: mx - dy / len * 0.15, y: my + dx / len * 0.15 };
+          }
+          addStroke({
+            id: crypto.randomUUID(),
+            tool: drawingTool,
+            color: drawingColor,
+            width: drawingWidth,
+            points: [start, control, end]
+          });
+        }
+      }
+      activeStrokeRef.current = [];
+      startPointRef.current = null;
+    },
+    [addStroke, drawingTool, drawingColor, drawingWidth, addFreeze]
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+    "canvas",
+    {
+      ref: canvasRef,
+      width: 1280,
+      height: 720,
+      className: "absolute inset-0 w-full h-full",
+      style: {
+        zIndex: 18,
+        cursor: isActive ? drawingTool === "eraser" ? "cell" : "crosshair" : "none",
+        pointerEvents: isActive ? "auto" : "none"
+      },
+      onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerLeave: onPointerUp
+    }
+  );
+}
+
+// hooks/usePlayback.ts
+var import_react8 = require("react");
+
+// lib/webcodecs/PreviewEngine.ts
+var renderer = new FrameRenderer();
+async function renderPreview(canvas, clips, currentTime, effectsMap, skipCrop = false) {
+  var _a;
+  const activeClip = clips.find(
+    (c) => c.trackId === "track-video" && c.startTime <= currentTime && c.startTime + c.duration > currentTime
+  );
+  if (!activeClip) {
+    renderer.clear(canvas);
+    return;
+  }
+  const localTime = currentTime - activeClip.startTime + activeClip.trimIn;
+  const decoder = getDecoderForFile(activeClip.file);
+  const frame = await decoder.requestFrame(activeClip.file, localTime);
+  if (!frame) return;
+  const base = (_a = effectsMap[activeClip.id]) != null ? _a : DEFAULT_EFFECTS;
+  const effects = skipCrop ? __spreadProps(__spreadValues({}, base), { cropX: 0, cropY: 0, cropW: 1, cropH: 1 }) : base;
+  renderer.renderFrame(frame, canvas, effects);
+  frame.close();
+}
+
+// hooks/usePlayback.ts
+function getActiveClipNow(time) {
+  const { clips } = useEditorStore.getState();
+  const clip = clips.find(
+    (c) => c.trackId === "track-video" && c.startTime <= time && c.startTime + c.duration > time
+  );
+  return clip ? { clip, decoder: getDecoderForFile(clip.file) } : null;
+}
+function usePlayback(canvasRef, onFirstFrame) {
+  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const clipsLength = useEditorStore((s) => s.clips.filter((c) => c.trackId === "track-video").length);
+  const rafRef = (0, import_react8.useRef)(null);
+  const renderingRef = (0, import_react8.useRef)(false);
+  const firstFrameFiredRef = (0, import_react8.useRef)(false);
+  (0, import_react8.useEffect)(() => {
+    if (clipsLength === 0) firstFrameFiredRef.current = false;
+  }, [clipsLength]);
+  const renderFrame = (0, import_react8.useCallback)(
+    async (time) => {
+      if (!canvasRef.current || renderingRef.current) return;
+      renderingRef.current = true;
+      try {
+        const { clips, clipEffects, cropToolActive } = useEditorStore.getState();
+        await renderPreview(canvasRef.current, clips, time, clipEffects, cropToolActive);
+        if (!firstFrameFiredRef.current) {
+          firstFrameFiredRef.current = true;
+          onFirstFrame == null ? void 0 : onFirstFrame();
+        }
+      } finally {
+        renderingRef.current = false;
+      }
+    },
+    [canvasRef, onFirstFrame]
+  );
+  const renderSourceFrame = (0, import_react8.useCallback)(
+    async (clipId, sourceTime) => {
+      var _a;
+      if (!canvasRef.current || renderingRef.current) return;
+      renderingRef.current = true;
+      try {
+        const { clips, clipEffects } = useEditorStore.getState();
+        const clip = clips.find((c) => c.id === clipId);
+        if (!clip) return;
+        const decoder = getDecoderForFile(clip.file);
+        const frame = await decoder.requestFrame(clip.file, sourceTime);
+        if (!frame) return;
+        const effects = (_a = clipEffects[clip.id]) != null ? _a : DEFAULT_EFFECTS;
+        renderer.renderFrame(frame, canvasRef.current, effects);
+        frame.close();
+      } finally {
+        renderingRef.current = false;
+      }
+    },
+    [canvasRef]
+  );
+  const renderFrameRef = (0, import_react8.useRef)(renderFrame);
+  renderFrameRef.current = renderFrame;
+  const renderSourceFrameRef = (0, import_react8.useRef)(renderSourceFrame);
+  renderSourceFrameRef.current = renderSourceFrame;
+  (0, import_react8.useEffect)(() => {
+    let lastTime = useEditorStore.getState().currentTime;
+    let lastEffects = useEditorStore.getState().clipEffects;
+    let lastTrimScrub = useEditorStore.getState().trimScrub;
+    let lastCropToolActive = useEditorStore.getState().cropToolActive;
+    return useEditorStore.subscribe((state) => {
+      if (state.isPlaying) return;
+      const scrubChanged = state.trimScrub !== lastTrimScrub;
+      if (scrubChanged) {
+        lastTrimScrub = state.trimScrub;
+        if (state.trimScrub) {
+          renderSourceFrameRef.current(state.trimScrub.clipId, state.trimScrub.sourceTime);
+          return;
+        }
+      }
+      if (state.trimScrub) return;
+      const timeChanged = state.currentTime !== lastTime;
+      const effectsChanged = state.clipEffects !== lastEffects;
+      const cropChanged = state.cropToolActive !== lastCropToolActive;
+      if (timeChanged || effectsChanged || cropChanged) {
+        lastTime = state.currentTime;
+        lastEffects = state.clipEffects;
+        lastCropToolActive = state.cropToolActive;
+        renderFrameRef.current(state.currentTime);
+      }
+    });
+  }, []);
+  (0, import_react8.useEffect)(() => {
+    if (clipsLength === 0) return;
+    const timer = setTimeout(() => {
+      renderFrameRef.current(useEditorStore.getState().currentTime);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [clipsLength]);
+  (0, import_react8.useEffect)(() => {
+    if (!isPlaying) {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+    let lastTime = performance.now();
+    let accumulated = 0;
+    const loop = (now) => {
+      var _a;
+      const { duration, playbackRate } = useEditorStore.getState();
+      if (playbackRate === 0) {
+        lastTime = now;
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      const delta = (now - lastTime) / 1e3;
+      lastTime = now;
+      accumulated += delta * playbackRate;
+      const frameDuration = 1 / 30;
+      if (accumulated < frameDuration) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+      const steps = Math.floor(accumulated / frameDuration);
+      accumulated -= steps * frameDuration;
+      const currentTime = useEditorStore.getState().currentTime;
+      const active = getActiveClipNow(currentTime);
+      if (active) {
+        const videoTime = active.decoder.getVideoCurrentTime();
+        const timelineTime = active.clip.startTime + videoTime - active.clip.trimIn;
+        if (timelineTime >= duration) {
+          useEditorStore.getState().setPlaying(false);
+          active.decoder.stopPlayback();
+          useEditorStore.getState().setCurrentTime(0);
+          return;
+        }
+        useEditorStore.getState().setCurrentTime(Math.min(timelineTime, duration));
+        if (canvasRef.current && !renderingRef.current) {
+          const frame = active.decoder.captureCurrentFrame();
+          if (frame) {
+            const { clipEffects, cropToolActive } = useEditorStore.getState();
+            const base = (_a = clipEffects[active.clip.id]) != null ? _a : DEFAULT_EFFECTS;
+            const effects = cropToolActive ? __spreadProps(__spreadValues({}, base), { cropX: 0, cropY: 0, cropW: 1, cropH: 1 }) : base;
+            renderer.renderFrame(frame, canvasRef.current, effects);
+            frame.close();
+          }
+        }
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [isPlaying, canvasRef]);
+}
+
+// lib/playbackActions.ts
+function getActiveVideoClip(time) {
+  var _a;
+  const clips = useEditorStore.getState().clips;
+  return (_a = clips.find(
+    (c) => c.trackId === "track-video" && c.startTime <= time && c.startTime + c.duration > time
+  )) != null ? _a : null;
+}
+function playAction() {
+  const { currentTime, setPlaying } = useEditorStore.getState();
+  const clip = getActiveVideoClip(currentTime);
+  if (clip) {
+    const localTime = currentTime - clip.startTime + clip.trimIn;
+    getDecoderForFile(clip.file).startPlayback(localTime);
+  }
+  setPlaying(true);
+}
+function pauseAction() {
+  const { currentTime, setPlaying } = useEditorStore.getState();
+  const clip = getActiveVideoClip(currentTime);
+  if (clip) {
+    getDecoderForFile(clip.file).stopPlayback();
+  }
+  setPlaying(false);
+}
+function togglePlayAction() {
+  const { isPlaying } = useEditorStore.getState();
+  if (isPlaying) pauseAction();
+  else playAction();
+}
+
+// components/editor/preview/PreviewPanel.tsx
+var import_shallow = require("zustand/react/shallow");
+var import_jsx_runtime7 = require("react/jsx-runtime");
+function PreviewPanel({ activeTool }) {
+  var _a;
+  const canvasRef = (0, import_react9.useRef)(null);
+  const fileInputRef = (0, import_react9.useRef)(null);
+  const [isMuted, setIsMuted] = (0, import_react9.useState)(false);
+  const [audioBlocked, setAudioBlocked] = (0, import_react9.useState)(false);
+  const [panX, setPanX] = (0, import_react9.useState)(0);
+  const [panY, setPanY] = (0, import_react9.useState)(0);
+  const [isPanning, setIsPanning] = (0, import_react9.useState)(false);
+  const panDragRef = (0, import_react9.useRef)(null);
+  const [previewReady, setPreviewReady] = (0, import_react9.useState)(false);
+  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const duration = useEditorStore((s) => s.duration);
+  const currentTime = useEditorStore((s) => s.currentTime);
+  const clips = useEditorStore((0, import_shallow.useShallow)((s) => s.clips.filter((c) => c.trackId === "track-video")));
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const cropToolActive = useEditorStore((s) => s.cropToolActive);
+  const storeZoom = useEditorStore((s) => s.zoom);
+  const previewScale = storeZoom / 80;
+  const { importFiles } = useVideoImport();
+  usePlayback(canvasRef, (0, import_react9.useCallback)(() => setPreviewReady(true), []));
+  (0, import_react9.useEffect)(() => {
+    if (previewScale <= 1) {
+      setPanX(0);
+      setPanY(0);
+    }
+  }, [previewScale]);
+  (0, import_react9.useEffect)(() => {
+    if (clips.length === 0) setPreviewReady(false);
+  }, [clips.length]);
+  const handlePanDown = (0, import_react9.useCallback)((e) => {
+    if (previewScale <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsPanning(true);
+    panDragRef.current = { startX: e.clientX, startY: e.clientY, startPanX: panX, startPanY: panY };
+  }, [previewScale, panX, panY]);
+  const handlePanMove = (0, import_react9.useCallback)((e) => {
+    if (!panDragRef.current) return;
+    setPanX(panDragRef.current.startPanX + (e.clientX - panDragRef.current.startX));
+    setPanY(panDragRef.current.startPanY + (e.clientY - panDragRef.current.startY));
+  }, []);
+  const handlePanUp = (0, import_react9.useCallback)(() => {
+    panDragRef.current = null;
+    setIsPanning(false);
+  }, []);
+  const activeClip = (_a = clips.find(
+    (c) => c.startTime <= currentTime && c.startTime + c.duration > currentTime
+  )) != null ? _a : clips[0];
+  const aspectRatio = (() => {
+    var _a2, _b;
+    if (!activeClip) return "16/9";
+    if (cropToolActive) return `${activeClip.width}/${activeClip.height}`;
+    const effects = clipEffects[activeClip.id];
+    const cropW = (_a2 = effects == null ? void 0 : effects.cropW) != null ? _a2 : 1;
+    const cropH = (_b = effects == null ? void 0 : effects.cropH) != null ? _b : 1;
+    return `${cropW * activeClip.width}/${cropH * activeClip.height}`;
+  })();
+  (0, import_react9.useEffect)(() => {
+    if (!activeClip) return;
+    const decoder = getDecoderForFile(activeClip.file);
+    decoder.setMuted(isMuted);
+  }, [isMuted, activeClip]);
+  (0, import_react9.useEffect)(() => {
+    if (!isPlaying || !activeClip) return;
+    const timer = setTimeout(() => {
+      const decoder = getDecoderForFile(activeClip.file);
+      setAudioBlocked(decoder.audioBlocked);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [isPlaying, activeClip]);
+  const handleMuteToggle = () => {
+    setIsMuted((m) => !m);
+    if (audioBlocked && isMuted) setAudioBlocked(false);
+  };
+  const hasClips = clips.length > 0;
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+    "div",
+    {
+      className: "relative flex-1 flex items-center justify-center overflow-hidden min-h-0",
+      style: { cursor: previewScale > 1 ? isPanning ? "grabbing" : "grab" : "default", background: "var(--kt-bg-preview)" },
+      onPointerDown: handlePanDown,
+      onPointerMove: handlePanMove,
+      onPointerUp: handlePanUp,
+      children: hasClips ? /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(import_jsx_runtime7.Fragment, { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+          "div",
+          {
+            className: "relative max-w-full max-h-full",
+            style: { aspectRatio, display: "flex", transform: `translate(${panX}px, ${panY}px) scale(${previewScale})`, transformOrigin: "center center" },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(PreviewCanvas, { ref: canvasRef }),
+              !previewReady && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "absolute inset-0 flex items-center justify-center z-10", style: { background: "var(--kt-bg-preview)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-8 h-8 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(OverlayLayer, {}),
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(DrawingCanvas, { isActive: activeTool === "annotate" }),
+              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CropOverlay, {})
+            ]
+          }
+        ),
+        audioBlocked && !isMuted && /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+          import_framer_motion2.motion.div,
+          {
+            initial: { opacity: 0, y: -4 },
+            animate: { opacity: 1, y: 0 },
+            className: "absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-sm border text-xs",
+            style: { background: "var(--kt-bg-surface)", borderColor: "var(--kt-border)", color: "var(--kt-text-secondary)" },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-3.5 h-3.5 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z", clipRule: "evenodd" }) }),
+              "Audio blocked by browser \u2014 open in Chrome for sound"
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            import_framer_motion2.motion.button,
+            {
+              whileTap: { scale: 0.92 },
+              onClick: togglePlayAction,
+              disabled: duration === 0,
+              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors",
+              style: { background: "var(--kt-text-primary)", color: "var(--kt-bg-base)" },
+              children: isPlaying ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4 translate-x-0.5", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z", clipRule: "evenodd" }) })
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+            import_framer_motion2.motion.button,
+            {
+              whileTap: { scale: 0.92 },
+              onClick: handleMuteToggle,
+              className: "w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors backdrop-blur-sm",
+              style: { background: "var(--kt-bg-subtle-hover)", color: "var(--kt-text-primary)" },
+              title: isMuted ? "Unmute" : "Mute",
+              children: isMuted ? /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z", clipRule: "evenodd" }) }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { fillRule: "evenodd", d: "M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z", clipRule: "evenodd" }) })
+            }
+          )
+        ] })
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        import_framer_motion2.motion.div,
+        {
+          initial: { opacity: 0, y: 6 },
+          animate: { opacity: 1, y: 0 },
+          className: "flex flex-col items-center gap-4 select-none",
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+              "button",
+              {
+                onClick: () => {
+                  var _a2;
+                  return (_a2 = fileInputRef.current) == null ? void 0 : _a2.click();
+                },
+                className: "flex flex-col items-center gap-3 px-8 py-6 rounded-xl border border-dashed transition-colors cursor-pointer group",
+                style: { borderColor: "var(--kt-border-strong)" },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("div", { className: "w-12 h-12 rounded-full flex items-center justify-center transition-colors", style: { background: "var(--kt-bg-subtle)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("svg", { className: "w-6 h-6", fill: "none", stroke: "currentColor", strokeWidth: 1.5, viewBox: "0 0 24 24", style: { color: "var(--kt-text-secondary)" }, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "text-center", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "text-sm font-medium", style: { color: "var(--kt-text-primary)" }, children: "Import a video" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("p", { className: "text-xs mt-0.5", style: { color: "var(--kt-text-muted)" }, children: "or drag and drop anywhere" })
+                  ] })
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+              "input",
+              {
+                ref: fileInputRef,
+                type: "file",
+                accept: "video/*",
+                multiple: true,
+                className: "hidden",
+                onChange: (e) => e.target.files && importFiles(e.target.files)
+              }
+            )
+          ]
+        }
+      )
+    }
+  );
+}
+
+// components/editor/panels/TrimPanel.tsx
+var import_react10 = require("react");
+var import_shallow2 = require("zustand/react/shallow");
+
+// lib/timeline/timeUtils.ts
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor(seconds % 3600 / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.floor(seconds % 1 * 100);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms).padStart(2, "0")}`;
+}
+
+// components/editor/panels/TrimPanel.tsx
+var import_jsx_runtime8 = require("react/jsx-runtime");
+var STRIP_HEIGHT = 56;
+var RULER_H = 20;
+var TOTAL_H = RULER_H + STRIP_HEIGHT + 16;
+var MIN_CLIP_DURATION = 0.1;
+var HANDLE_W = 14;
+var thumbCache = /* @__PURE__ */ new Map();
+function TrimPanel() {
+  var _a, _b, _c;
+  const containerRef = (0, import_react10.useRef)(null);
+  const [containerWidth, setContainerWidth] = (0, import_react10.useState)(0);
+  const dragRef = (0, import_react10.useRef)(null);
+  const clips = useEditorStore((0, import_shallow2.useShallow)((s) => s.clips.filter((c) => c.trackId === "track-video")));
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const currentTime = useEditorStore((s) => s.currentTime);
+  const duration = useEditorStore((s) => s.duration);
+  const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
+  const trimClipStart = useEditorStore((s) => s.trimClipStart);
+  const trimClipEnd = useEditorStore((s) => s.trimClipEnd);
+  const setSelectedClip = useEditorStore((s) => s.setSelectedClip);
+  const setTrimScrub = useEditorStore((s) => s.setTrimScrub);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const clip = (_b = (_a = clips.find((c) => c.id === selectedClipId)) != null ? _a : clips[0]) != null ? _b : null;
+  (0, import_react10.useEffect)(() => {
+    if (!selectedClipId && clips.length > 0) {
+      setSelectedClip(clips[0].id);
+    }
+  }, [clips, selectedClipId, setSelectedClip]);
+  (0, import_react10.useEffect)(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const sourceDuration = (_c = clip == null ? void 0 : clip.sourceDuration) != null ? _c : 1;
+  const zoom = containerWidth > 0 && sourceDuration > 0 ? containerWidth / sourceDuration : 1;
+  const [localSourceTime, setLocalSourceTime] = (0, import_react10.useState)(0);
+  const isDraggingRef = (0, import_react10.useRef)(false);
+  const wasPlayingRef = (0, import_react10.useRef)(false);
+  (0, import_react10.useEffect)(() => {
+    if (isDraggingRef.current || !clip) return;
+    const src = clip.trimIn + (currentTime - clip.startTime);
+    setLocalSourceTime(Math.max(0, Math.min(src, clip.sourceDuration)));
+  }, [currentTime, clip]);
+  const [thumbs, setThumbs] = (0, import_react10.useState)(() => {
+    var _a2;
+    return (_a2 = thumbCache.get("")) != null ? _a2 : [];
+  });
+  (0, import_react10.useEffect)(() => {
+    if (!clip || containerWidth === 0) return;
+    const cached = thumbCache.get(clip.id);
+    if (cached) {
+      setThumbs(cached);
+      return;
+    }
+    setThumbs([]);
+    const aspect = clip.width / clip.height;
+    const thumbW = Math.round(STRIP_HEIGHT * aspect);
+    const count = Math.max(2, Math.ceil(containerWidth / thumbW));
+    const decoder = getDecoderForFile(clip.file);
+    const promises = Array.from({ length: count }, (_, i) => {
+      const t = i / Math.max(count - 1, 1) * clip.sourceDuration;
+      return decoder.requestFrame(clip.file, t).then((frame) => {
+        if (!frame) return null;
+        const c = document.createElement("canvas");
+        c.width = thumbW;
+        c.height = STRIP_HEIGHT;
+        const ctx = c.getContext("2d");
+        if (ctx) ctx.drawImage(frame, 0, 0, thumbW, STRIP_HEIGHT);
+        frame.close();
+        return c.toDataURL("image/jpeg", 0.65);
+      }).catch(() => null);
+    });
+    Promise.all(promises).then((results) => {
+      const valid = results.filter(Boolean);
+      if (valid.length > 0) {
+        thumbCache.set(clip.id, valid);
+        setThumbs(valid);
+      }
+    });
+  }, [clip == null ? void 0 : clip.id, containerWidth]);
+  const toX = (sec) => sec * zoom;
+  const handlePointerMove = (0, import_react10.useCallback)(
+    (e) => {
+      const d = dragRef.current;
+      if (!d || !clip || !containerRef.current) return;
+      if (d.type === "scrub") {
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const t = Math.max(0, Math.min(x / zoom, clip.sourceDuration));
+        setLocalSourceTime(t);
+        setTrimScrub({ clipId: clip.id, sourceTime: t });
+        return;
+      }
+      const dxSec = (e.clientX - d.startX) / zoom;
+      if (d.type === "trimStart") {
+        const newTrimIn = Math.max(0, Math.min(d.startTrimIn + dxSec, d.startTrimOut - MIN_CLIP_DURATION));
+        const delta = newTrimIn - d.startTrimIn;
+        trimClipStart(clip.id, newTrimIn, d.startClipStartTime + delta, d.startDuration - delta);
+      } else if (d.type === "trimEnd") {
+        const newTrimOut = Math.min(
+          clip.sourceDuration,
+          Math.max(d.startTrimOut + dxSec, d.startTrimIn + MIN_CLIP_DURATION)
+        );
+        const delta = newTrimOut - d.startTrimOut;
+        trimClipEnd(clip.id, newTrimOut, d.startDuration + delta);
+      }
+    },
+    [clip, zoom, setTrimScrub, trimClipStart, trimClipEnd]
+  );
+  const handlePointerUp = (0, import_react10.useCallback)(() => {
+    if (!clip) return;
+    const d = dragRef.current;
+    dragRef.current = null;
+    isDraggingRef.current = false;
+    if ((d == null ? void 0 : d.type) === "scrub") {
+      setTrimScrub(null);
+      const timelineT = clip.startTime + (localSourceTime - clip.trimIn);
+      if (wasPlayingRef.current) {
+        wasPlayingRef.current = false;
+        const decoder = getDecoderForFile(clip.file);
+        decoder.startPlayback(localSourceTime);
+        useEditorStore.getState().setPlaying(true);
+      } else {
+        setCurrentTime(Math.max(0, Math.min(timelineT, duration)));
+      }
+    }
+  }, [clip, localSourceTime, duration, setCurrentTime, setTrimScrub]);
+  const beginDrag = (0, import_react10.useCallback)(
+    (e, type) => {
+      var _a2;
+      if (!clip) return;
+      e.stopPropagation();
+      (_a2 = containerRef.current) == null ? void 0 : _a2.setPointerCapture(e.pointerId);
+      isDraggingRef.current = true;
+      if (type === "scrub") {
+        const isPlaying = useEditorStore.getState().isPlaying;
+        wasPlayingRef.current = isPlaying;
+        if (isPlaying) pauseAction();
+      } else {
+        captureHistory();
+      }
+      dragRef.current = {
+        type,
+        startX: e.clientX,
+        startTrimIn: clip.trimIn,
+        startTrimOut: clip.trimOut,
+        startClipStartTime: clip.startTime,
+        startDuration: clip.duration
+      };
+    },
+    [clip, captureHistory]
+  );
+  const rulerTicks = [];
+  let majorInterval = 1;
+  if (sourceDuration > 300) majorInterval = 60;
+  else if (sourceDuration > 120) majorInterval = 30;
+  else if (sourceDuration > 60) majorInterval = 10;
+  else if (sourceDuration > 30) majorInterval = 5;
+  const minorInterval = majorInterval / 5;
+  for (let t = 0; t <= Math.ceil(sourceDuration); t += minorInterval) {
+    rulerTicks.push({ t, isMajor: Math.abs(t % majorInterval) < minorInterval / 2 });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+    "div",
+    {
+      ref: containerRef,
+      className: "shrink-0 relative border-t overflow-hidden select-none",
+      style: { height: TOTAL_H, borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" },
+      onPointerMove: handlePointerMove,
+      onPointerUp: handlePointerUp,
+      children: [
+        (!clip || containerWidth === 0) && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex items-center justify-center", style: { height: TOTAL_H }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { className: "text-xs", style: { color: "var(--kt-text-faint)" }, children: clips.length === 0 ? "Import a video to trim" : "Loading\u2026" }) }),
+        clip && containerWidth > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+            "div",
+            {
+              className: "absolute top-0 left-0 right-0 cursor-col-resize",
+              style: { height: RULER_H },
+              onPointerDown: (e) => beginDrag(e, "scrub"),
+              children: rulerTicks.map(({ t, isMajor }) => /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "absolute top-0 flex flex-col", style: { left: toX(t) }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: `w-px ${isMajor ? "h-2.5" : "h-1.5"}`, style: { background: isMajor ? "var(--kt-tick-major)" : "var(--kt-tick-minor)" } }),
+                isMajor && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("span", { className: "text-[9px] ml-1 leading-none tabular-nums", style: { color: "var(--kt-text-muted)" }, children: formatTime(t) })
+              ] }, t))
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "absolute left-0 right-0 cursor-col-resize",
+              style: { top: RULER_H, height: STRIP_HEIGHT },
+              onPointerDown: (e) => beginDrag(e, "scrub"),
+              children: [
+                thumbs.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex h-full pointer-events-none", children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "img",
+                  {
+                    src,
+                    alt: "",
+                    className: "h-full flex-1 object-cover",
+                    draggable: false,
+                    style: { filter: `brightness(var(--kt-dimmed-thumb))` }
+                  },
+                  i
+                )) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-full h-full flex items-center justify-center pointer-events-none", style: { background: "var(--kt-bg-surface)" }, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-4 h-4 border-2 rounded-full animate-spin", style: { borderColor: "var(--kt-spinner-border)", borderTopColor: "var(--kt-spinner-top)" } }) }),
+                (() => {
+                  const selLeft = toX(clip.trimIn);
+                  const selWidth = Math.max(toX(clip.trimOut) - toX(clip.trimIn), HANDLE_W * 2 + 4);
+                  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute top-0 overflow-hidden pointer-events-none",
+                        style: { left: selLeft, width: selWidth, height: STRIP_HEIGHT },
+                        children: thumbs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "flex h-full", style: { width: containerWidth, marginLeft: -selLeft }, children: thumbs.map((src, i) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("img", { src, alt: "", className: "h-full flex-1 object-cover", draggable: false }, i)) })
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute top-0 pointer-events-none",
+                        style: {
+                          left: selLeft,
+                          width: selWidth,
+                          height: STRIP_HEIGHT,
+                          border: "2px solid var(--kt-accent-strong-border)",
+                          borderRadius: 2
+                        }
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute top-0 bottom-0 flex items-center justify-center cursor-w-resize rounded-l",
+                        style: { left: selLeft, width: HANDLE_W, zIndex: 10, background: "var(--kt-accent)" },
+                        onPointerDown: (e) => beginDrag(e, "trimStart"),
+                        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
+                        ] })
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute top-0 bottom-0 flex items-center justify-center cursor-e-resize rounded-r",
+                        style: { left: selLeft + selWidth - HANDLE_W, width: HANDLE_W, zIndex: 10, background: "var(--kt-accent)" },
+                        onPointerDown: (e) => beginDrag(e, "trimEnd"),
+                        children: /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "flex gap-0.5 pointer-events-none", children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" }),
+                          /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "w-0.5 h-5 bg-amber-900/60 rounded-full" })
+                        ] })
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute pointer-events-none text-[9px] font-semibold tabular-nums px-1 rounded",
+                        style: { left: selLeft + HANDLE_W + 2, top: 2, color: "var(--kt-badge-text)", background: "var(--kt-badge-bg)" },
+                        children: formatTime(clip.trimIn)
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                      "div",
+                      {
+                        className: "absolute pointer-events-none text-[9px] font-semibold tabular-nums px-1 rounded",
+                        style: { left: selLeft + selWidth - HANDLE_W - 36, top: 2, color: "var(--kt-badge-text)", background: "var(--kt-badge-bg)" },
+                        children: formatTime(clip.trimOut)
+                      }
+                    )
+                  ] });
+                })()
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "absolute top-0 z-20 pointer-events-none",
+              style: { left: toX(localSourceTime), bottom: 0 },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "div",
+                  {
+                    className: "absolute w-px",
+                    style: { top: RULER_H - 2, bottom: 0, left: 0, transform: "translateX(-50%)", background: "var(--kt-text-primary)" }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "div",
+                  {
+                    className: "absolute -translate-x-1/2 border rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums cursor-col-resize pointer-events-auto",
+                    style: { top: 0, background: "var(--kt-time-badge-bg)", color: "var(--kt-text-primary)", borderColor: "var(--kt-time-badge-border)" },
+                    onPointerDown: (e) => beginDrag(e, "scrub"),
+                    children: formatTime(localSourceTime)
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "div",
+                  {
+                    className: "absolute -translate-x-1/2",
+                    style: {
+                      top: RULER_H - 1,
+                      width: 0,
+                      height: 0,
+                      borderLeft: "5px solid transparent",
+                      borderRight: "5px solid transparent",
+                      borderTop: "6px solid var(--kt-text-primary)"
+                    }
+                  }
+                )
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
+            "div",
+            {
+              className: "absolute right-3 pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded",
+              style: { top: RULER_H + 2, color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" },
+              children: [
+                formatTime(clip.trimOut - clip.trimIn),
+                " / ",
+                formatTime(clip.sourceDuration)
+              ]
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+
+// components/editor/panels/FinetunePanel.tsx
+var import_jsx_runtime9 = require("react/jsx-runtime");
+function SliderRow({ label, value, min, max, onValueChange, onPointerDown, displayValue }) {
+  const pct = (value - min) / (max - min) * 100;
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center gap-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs w-20 shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: label }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "relative flex-1 h-5 flex items-center", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "absolute inset-x-0 h-1 rounded-full", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "h-full rounded-full", style: { width: `${pct}%`, background: "var(--kt-slider-fill)" } }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "div",
+        {
+          className: "absolute w-3.5 h-3.5 rounded-full shadow-md pointer-events-none",
+          style: { left: `calc(${pct}% - 7px)`, background: "var(--kt-slider-thumb)" }
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "input",
+        {
+          type: "range",
+          min,
+          max,
+          value,
+          onChange: (e) => onValueChange(Number(e.target.value)),
+          onPointerDown,
+          className: "absolute inset-0 w-full opacity-0 cursor-pointer h-5"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs w-8 text-right tabular-nums shrink-0", style: { color: "var(--kt-text-tertiary)" }, children: displayValue != null ? displayValue : value })
+  ] });
+}
+function FinetunePanel() {
+  var _a, _b, _c;
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const setClipEffect = useEditorStore((s) => s.setClipEffect);
+  const resetClipEffects = useEditorStore((s) => s.resetClipEffects);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const clips = useEditorStore((s) => s.clips);
+  const targetId = (_b = selectedClipId != null ? selectedClipId : (_a = clips.find((c) => c.trackId === "track-video")) == null ? void 0 : _a.id) != null ? _b : null;
+  const effects = targetId ? (_c = clipEffects[targetId]) != null ? _c : DEFAULT_EFFECTS : DEFAULT_EFFECTS;
+  const set = (key, v) => {
+    if (targetId) setClipEffect(targetId, key, v);
+  };
+  const handleSliderPointerDown = () => captureHistory();
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-6 py-3 md:py-4 max-h-[180px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "flex items-center justify-between mb-2 md:mb-3", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Adjustments" }),
+      targetId && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          onClick: () => resetClipEffects(targetId),
+          className: "text-[11px] transition-colors",
+          style: { color: "var(--kt-text-muted)" },
+          children: "Reset"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 md:gap-y-2.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Brightness",
+          value: effects.brightness,
+          min: -100,
+          max: 100,
+          onValueChange: (v) => set("brightness", v),
+          onPointerDown: handleSliderPointerDown
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Contrast",
+          value: effects.contrast,
+          min: -100,
+          max: 100,
+          onValueChange: (v) => set("contrast", v),
+          onPointerDown: handleSliderPointerDown
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Saturation",
+          value: effects.saturation,
+          min: -100,
+          max: 100,
+          onValueChange: (v) => set("saturation", v),
+          onPointerDown: handleSliderPointerDown
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Rotation",
+          value: effects.rotation,
+          min: -180,
+          max: 180,
+          displayValue: `${effects.rotation}\xB0`,
+          onValueChange: (v) => set("rotation", v),
+          onPointerDown: handleSliderPointerDown
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Opacity",
+          value: Math.round(effects.opacity * 100),
+          min: 0,
+          max: 100,
+          displayValue: `${Math.round(effects.opacity * 100)}%`,
+          onValueChange: (v) => set("opacity", v / 100),
+          onPointerDown: handleSliderPointerDown
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        SliderRow,
+        {
+          label: "Speed",
+          value: Math.round(effects.speed * 100),
+          min: 25,
+          max: 400,
+          displayValue: `${effects.speed.toFixed(2)}x`,
+          onValueChange: (v) => set("speed", v / 100),
+          onPointerDown: handleSliderPointerDown
+        }
+      )
+    ] })
+  ] });
+}
+
+// components/editor/panels/FilterPanel.tsx
+var import_jsx_runtime10 = require("react/jsx-runtime");
+var PRESETS = [
+  {
+    id: "original",
+    label: "Original",
+    effects: { brightness: 0, contrast: 0, saturation: 0 },
+    cssFilter: "none"
+  },
+  {
+    id: "vivid",
+    label: "Vivid",
+    effects: { brightness: 10, contrast: 20, saturation: 40 },
+    cssFilter: "brightness(1.1) contrast(1.2) saturate(1.4)"
+  },
+  {
+    id: "warm",
+    label: "Warm",
+    effects: { brightness: 8, contrast: 5, saturation: 15 },
+    cssFilter: "brightness(1.08) contrast(1.05) saturate(1.15) sepia(0.2)"
+  },
+  {
+    id: "cool",
+    label: "Cool",
+    effects: { brightness: 5, contrast: 10, saturation: -10 },
+    cssFilter: "brightness(1.05) contrast(1.1) saturate(0.9) hue-rotate(20deg)"
+  },
+  {
+    id: "bw",
+    label: "B&W",
+    effects: { brightness: 5, contrast: 15, saturation: -100 },
+    cssFilter: "grayscale(1) brightness(1.05) contrast(1.15)"
+  },
+  {
+    id: "fade",
+    label: "Fade",
+    effects: { brightness: 20, contrast: -20, saturation: -20 },
+    cssFilter: "brightness(1.2) contrast(0.8) saturate(0.8)"
+  },
+  {
+    id: "dramatic",
+    label: "Dramatic",
+    effects: { brightness: -5, contrast: 40, saturation: 20 },
+    cssFilter: "brightness(0.95) contrast(1.4) saturate(1.2)"
+  },
+  {
+    id: "film",
+    label: "Film",
+    effects: { brightness: -5, contrast: 10, saturation: -15 },
+    cssFilter: "brightness(0.95) contrast(1.1) saturate(0.85) sepia(0.1)"
+  },
+  {
+    id: "matte",
+    label: "Matte",
+    effects: { brightness: 15, contrast: -10, saturation: -30 },
+    cssFilter: "brightness(1.15) contrast(0.9) saturate(0.7)"
+  }
+];
+function FilterPanel() {
+  var _a, _b, _c, _d, _e;
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const clips = useEditorStore((s) => s.clips);
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const setClipEffects = useEditorStore((s) => s.setClipEffects);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const targetId = (_b = selectedClipId != null ? selectedClipId : (_a = clips.find((c) => c.trackId === "track-video")) == null ? void 0 : _a.id) != null ? _b : null;
+  const effects = targetId ? (_c = clipEffects[targetId]) != null ? _c : DEFAULT_EFFECTS : DEFAULT_EFFECTS;
+  const activePreset = (_e = (_d = PRESETS.find(
+    (p) => {
+      var _a2, _b2, _c2;
+      return ((_a2 = p.effects.brightness) != null ? _a2 : 0) === effects.brightness && ((_b2 = p.effects.contrast) != null ? _b2 : 0) === effects.contrast && ((_c2 = p.effects.saturation) != null ? _c2 : 0) === effects.saturation;
+    }
+  )) == null ? void 0 : _d.id) != null ? _e : null;
+  const applyPreset = (preset) => {
+    if (!targetId) return;
+    captureHistory();
+    setClipEffects(targetId, preset.effects);
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-4 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex items-center justify-between mb-2.5", children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("span", { className: "text-xs font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-secondary)" }, children: "Filters" }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "flex gap-2 overflow-x-auto pb-1 scrollbar-hide", children: PRESETS.map((preset) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+      "button",
+      {
+        onClick: () => applyPreset(preset),
+        className: "shrink-0 flex flex-col items-center gap-1.5 group",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+            "div",
+            {
+              className: "w-14 h-10 rounded-md overflow-hidden border-2 transition-colors",
+              style: {
+                borderColor: activePreset === preset.id ? "var(--kt-accent)" : "transparent"
+              },
+              children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+                "div",
+                {
+                  className: "w-full h-full",
+                  style: {
+                    background: "linear-gradient(135deg, #6b7280 0%, #374151 50%, #9ca3af 100%)",
+                    filter: preset.cssFilter
+                  }
+                }
+              )
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+            "span",
+            {
+              className: "text-[10px] leading-none transition-colors",
+              style: { color: activePreset === preset.id ? "var(--kt-accent)" : "var(--kt-text-muted)" },
+              children: preset.label
+            }
+          )
+        ]
+      },
+      preset.id
+    )) })
+  ] });
+}
+
+// components/editor/panels/CropPanel.tsx
+var import_jsx_runtime11 = require("react/jsx-runtime");
+var ASPECT_PRESETS = [
+  { label: "Free", ratio: null },
+  { label: "16:9", ratio: [16, 9] },
+  { label: "9:16", ratio: [9, 16] },
+  { label: "4:3", ratio: [4, 3] },
+  { label: "3:4", ratio: [3, 4] },
+  { label: "1:1", ratio: [1, 1] }
+];
+function CropPanel() {
+  var _a, _b, _c;
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const clips = useEditorStore((s) => s.clips);
+  const clipEffects = useEditorStore((s) => s.clipEffects);
+  const setClipEffects = useEditorStore((s) => s.setClipEffects);
+  const resetClipEffects = useEditorStore((s) => s.resetClipEffects);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const targetId = (_b = selectedClipId != null ? selectedClipId : (_a = clips.find((c) => c.trackId === "track-video")) == null ? void 0 : _a.id) != null ? _b : null;
+  const effects = targetId ? (_c = clipEffects[targetId]) != null ? _c : DEFAULT_EFFECTS : DEFAULT_EFFECTS;
+  const applyCrop = (ratio) => {
+    if (!targetId) return;
+    captureHistory();
+    if (!ratio) {
+      setClipEffects(targetId, { cropX: 0, cropY: 0, cropW: 1, cropH: 1 });
+      return;
+    }
+    const clip = clips.find((c) => c.id === targetId);
+    if (!clip) return;
+    const videoAspect = clip.width / clip.height;
+    const targetAspect = ratio[0] / ratio[1];
+    let cropW = 1, cropH = 1, cropX = 0, cropY = 0;
+    if (targetAspect < videoAspect) {
+      cropW = clip.height * targetAspect / clip.width;
+      cropX = (1 - cropW) / 2;
+    } else {
+      cropH = clip.width / targetAspect / clip.height;
+      cropY = (1 - cropH) / 2;
+    }
+    setClipEffects(targetId, { cropX, cropY, cropW, cropH });
+  };
+  const resetCrop = () => {
+    if (!targetId) return;
+    captureHistory();
+    setClipEffects(targetId, { cropX: 0, cropY: 0, cropW: 1, cropH: 1 });
+  };
+  const isDefaultCrop = effects.cropX === 0 && effects.cropY === 0 && effects.cropW === 1 && effects.cropH === 1;
+  return /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsxs)("div", { className: "flex items-center justify-between mb-2.5", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Aspect Ratio" }),
+      !isDefaultCrop && /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+        "button",
+        {
+          onClick: resetCrop,
+          className: "text-[11px] transition-colors",
+          style: { color: "var(--kt-text-muted)" },
+          children: "Reset"
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("div", { className: "flex gap-1.5 flex-wrap", children: ASPECT_PRESETS.map((preset) => {
+      const isActive = preset.ratio === null ? isDefaultCrop : (() => {
+        if (!clips.find((c) => c.id === targetId)) return false;
+        const clip = clips.find((c) => c.id === targetId);
+        const videoAspect = clip.width / clip.height;
+        const targetAspect = preset.ratio[0] / preset.ratio[1];
+        let expectedW = 1, expectedH = 1, expectedX = 0, expectedY = 0;
+        if (targetAspect < videoAspect) {
+          expectedW = clip.height * targetAspect / clip.width;
+          expectedX = (1 - expectedW) / 2;
+        } else {
+          expectedH = clip.width / targetAspect / clip.height;
+          expectedY = (1 - expectedH) / 2;
+        }
+        return Math.abs(effects.cropX - expectedX) < 0.01 && Math.abs(effects.cropY - expectedY) < 0.01 && Math.abs(effects.cropW - expectedW) < 0.01 && Math.abs(effects.cropH - expectedH) < 0.01;
+      })();
+      return /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+        "button",
+        {
+          onClick: () => applyCrop(preset.ratio),
+          className: `px-2.5 py-1 rounded text-xs font-medium transition-colors ${isActive ? "kt-chip-active" : "kt-chip"}`,
+          children: preset.label
+        },
+        preset.label
+      );
+    }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime11.jsx)("p", { className: "text-[10px] mt-2", style: { color: "var(--kt-text-faint)" }, children: "Drag handles in preview to adjust crop freely" })
+  ] });
+}
+
+// components/editor/panels/ResizePanel.tsx
+var import_jsx_runtime12 = require("react/jsx-runtime");
+var RESOLUTIONS = [
+  { label: "Original", value: "original", desc: "Keep source resolution" },
+  { label: "1080p", value: "1080p", desc: "1920 \xD7 1080" },
+  { label: "720p", value: "720p", desc: "1280 \xD7 720" },
+  { label: "480p", value: "480p", desc: "854 \xD7 480" }
+];
+var FPS_OPTIONS = [
+  { label: "24 fps", value: 24 },
+  { label: "30 fps", value: 30 },
+  { label: "60 fps", value: 60 }
+];
+function ResizePanel() {
+  const settings = useEditorStore((s) => s.settings);
+  const updateSettings = useEditorStore((s) => s.updateExportSettings);
+  return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3 max-h-[160px] overflow-y-auto", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex flex-col md:flex-row gap-3 md:gap-8", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Resolution" }),
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2 flex-wrap", children: RESOLUTIONS.map((r) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+        "button",
+        {
+          onClick: () => updateSettings({ resolution: r.value }),
+          title: r.desc,
+          className: `px-2.5 py-1 rounded text-xs font-medium transition-colors ${settings.resolution === r.value ? "kt-chip-active" : "kt-chip"}`,
+          children: r.label
+        },
+        r.value
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Frame Rate" }),
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2", children: FPS_OPTIONS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+        "button",
+        {
+          onClick: () => updateSettings({ fps: f.value }),
+          className: `px-2.5 py-1 rounded text-xs font-medium transition-colors ${settings.fps === f.value ? "kt-chip-active" : "kt-chip"}`,
+          children: f.label
+        },
+        f.value
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime12.jsxs)("div", { className: "flex-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Format" }),
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)("div", { className: "flex gap-1.5 mt-2", children: ["mp4", "webm"].map((fmt) => /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+        "button",
+        {
+          onClick: () => updateSettings({ format: fmt }),
+          className: `px-2.5 py-1 rounded text-xs font-medium uppercase transition-colors ${settings.format === fmt ? "kt-chip-active" : "kt-chip"}`,
+          children: fmt
+        },
+        fmt
+      )) })
+    ] })
+  ] }) });
+}
+
+// components/editor/panels/AnnotatePanel.tsx
+var import_jsx_runtime13 = require("react/jsx-runtime");
+var COLORS = ["#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00cfff", "#ffffff", "#000000"];
+var WIDTHS = [2, 4, 8, 16];
+var TOOLS2 = [
+  { key: "pen", label: "Pen" },
+  { key: "eraser", label: "Eraser" },
+  { key: "straight", label: "Line" },
+  { key: "arrow", label: "Arrow" },
+  { key: "curved", label: "Curve" }
+];
+function AnnotatePanel() {
+  const drawingTool = useEditorStore((s) => s.drawingTool);
+  const drawingColor = useEditorStore((s) => s.drawingColor);
+  const drawingWidth = useEditorStore((s) => s.drawingWidth);
+  const annotationDuration = useEditorStore((s) => s.annotationDuration);
+  const setDrawingTool = useEditorStore((s) => s.setDrawingTool);
+  const setDrawingColor = useEditorStore((s) => s.setDrawingColor);
+  const setDrawingWidth = useEditorStore((s) => s.setDrawingWidth);
+  const setAnnotationDuration = useEditorStore((s) => s.setAnnotationDuration);
+  const undoStroke = useEditorStore((s) => s.undoStroke);
+  const clearStrokes = useEditorStore((s) => s.clearStrokes);
+  const strokes = useEditorStore((s) => s.strokes);
+  return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-6", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Tool" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1 flex-wrap", children: TOOLS2.map((t) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        "button",
+        {
+          onClick: () => setDrawingTool(t.key),
+          className: `px-3 py-1.5 rounded text-xs font-medium transition-colors ${drawingTool === t.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          children: t.label
+        },
+        t.key
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Color" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1.5", children: COLORS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        "button",
+        {
+          onClick: () => setDrawingColor(c),
+          className: "w-5 h-5 rounded-full border-2 transition-transform hover:scale-110",
+          style: {
+            background: c,
+            borderColor: drawingColor === c ? "var(--kt-text-primary)" : "transparent",
+            boxShadow: c === "#ffffff" ? "inset 0 0 0 1px var(--kt-border)" : void 0
+          }
+        },
+        c
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Width" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("div", { className: "flex gap-1 items-center", children: WIDTHS.map((w) => /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+        "button",
+        {
+          onClick: () => setDrawingWidth(w),
+          className: `flex items-center justify-center w-8 h-7 rounded transition-colors ${drawingWidth === w ? "" : "kt-btn-subtle"}`,
+          style: drawingWidth === w ? { background: "var(--kt-accent-subtle-bg)", boxShadow: "inset 0 0 0 1px var(--kt-accent)" } : void 0,
+          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            "div",
+            {
+              className: "rounded-full",
+              style: { background: "var(--kt-slider-thumb)", width: Math.min(w * 2, 20), height: Math.min(w / 2 + 2, 8) }
+            }
+          )
+        },
+        w
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+        "Duration: ",
+        annotationDuration,
+        "s"
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex items-center gap-2", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          "input",
+          {
+            type: "range",
+            min: 0.5,
+            max: 10,
+            step: 0.5,
+            value: annotationDuration,
+            onChange: (e) => setAnnotationDuration(parseFloat(e.target.value)),
+            className: "w-20 h-1.5 rounded-full appearance-none cursor-pointer",
+            style: {
+              background: "var(--kt-slider-track)",
+              accentColor: "var(--kt-accent)"
+            }
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
+          annotationDuration.toFixed(1),
+          "s"
+        ] })
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex flex-col gap-1 md:ml-auto", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Actions" }),
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsxs)("div", { className: "flex gap-1", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          "button",
+          {
+            onClick: undoStroke,
+            disabled: strokes.length === 0,
+            className: "px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+            children: "Undo"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          "button",
+          {
+            onClick: clearStrokes,
+            disabled: strokes.length === 0,
+            className: "px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle disabled:opacity-30 disabled:cursor-not-allowed transition-colors",
+            style: { color: "var(--kt-danger)" },
+            children: "Clear"
+          }
+        )
+      ] })
+    ] })
+  ] }) });
+}
+
+// components/editor/panels/StickerPanel.tsx
+var import_react11 = require("react");
+var import_jsx_runtime14 = require("react/jsx-runtime");
+var STICKER_GROUPS = [
+  {
+    label: "Reactions",
+    emojis: ["\u{1F600}", "\u{1F602}", "\u{1F60D}", "\u{1F970}", "\u{1F60E}", "\u{1F929}", "\u{1F631}", "\u{1F914}", "\u{1F634}", "\u{1F973}"]
+  },
+  {
+    label: "Symbols",
+    emojis: ["\u2764\uFE0F", "\u{1F4AF}", "\u{1F525}", "\u2B50", "\u2728", "\u{1F4AB}", "\u{1F389}", "\u{1F38A}", "\u{1F44D}", "\u{1F44E}"]
+  },
+  {
+    label: "Nature",
+    emojis: ["\u{1F31F}", "\u{1F308}", "\u2600\uFE0F", "\u{1F319}", "\u26A1", "\u2744\uFE0F", "\u{1F338}", "\u{1F340}", "\u{1F98B}", "\u{1F43E}"]
+  },
+  {
+    label: "Objects",
+    emojis: ["\u{1F3AC}", "\u{1F4F8}", "\u{1F3B5}", "\u{1F3AE}", "\u{1F48E}", "\u{1F3C6}", "\u{1F3AF}", "\u{1F680}", "\u{1F4A1}", "\u{1F511}"]
+  }
+];
+function StickerPanel() {
+  const addStickerOverlay = useEditorStore((s) => s.addStickerOverlay);
+  const overlays = useEditorStore((s) => s.overlays);
+  const removeOverlay = useEditorStore((s) => s.removeOverlay);
+  const stickerDuration = useEditorStore((s) => s.stickerDuration);
+  const setStickerDuration = useEditorStore((s) => s.setStickerDuration);
+  const imageInputRef = (0, import_react11.useRef)(null);
+  const stickerOverlays = overlays.filter((o) => o.type === "sticker");
+  const handleAddEmoji = (emoji) => {
+    addStickerOverlay({ emoji, x: 0.5, y: 0.5, scale: 1 });
+  };
+  const handleImageUpload = (e) => {
+    var _a;
+    const file = (_a = e.target.files) == null ? void 0 : _a[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      addStickerOverlay({
+        emoji: "",
+        imageUrl: reader.result,
+        x: 0.5,
+        y: 0.5,
+        scale: 1
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+    "div",
+    {
+      className: "shrink-0 border-t px-3 md:px-4 py-3 overflow-y-auto max-h-[200px]",
+      style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" },
+      children: /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-4 h-full", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex-1 min-w-0 overflow-y-auto", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+              "button",
+              {
+                onClick: () => {
+                  var _a;
+                  return (_a = imageInputRef.current) == null ? void 0 : _a.click();
+                },
+                className: "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium kt-btn-subtle border transition-colors",
+                style: { borderColor: "var(--kt-border-input)" },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" }) }),
+                  "Upload image"
+                ]
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+              "input",
+              {
+                ref: imageInputRef,
+                type: "file",
+                accept: "image/*",
+                className: "hidden",
+                onChange: handleImageUpload
+              }
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2 flex items-center gap-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider shrink-0", style: { color: "var(--kt-text-muted)" }, children: "Duration" }),
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+              "input",
+              {
+                type: "range",
+                min: 0.5,
+                max: 10,
+                step: 0.5,
+                value: stickerDuration,
+                onChange: (e) => setStickerDuration(parseFloat(e.target.value)),
+                className: "w-16 h-1.5 rounded-full appearance-none cursor-pointer",
+                style: {
+                  background: "var(--kt-slider-track)",
+                  accentColor: "var(--kt-accent)"
+                }
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-secondary)", minWidth: 28 }, children: [
+              stickerDuration.toFixed(1),
+              "s"
+            ] })
+          ] }),
+          STICKER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "mb-2", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[10px] font-semibold uppercase tracking-wider block mb-1", style: { color: "var(--kt-text-faint)" }, children: group.label }),
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex flex-wrap gap-1", children: group.emojis.map((emoji) => /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+              "button",
+              {
+                onClick: () => handleAddEmoji(emoji),
+                className: "w-8 h-8 flex items-center justify-center rounded kt-emoji-btn transition-colors text-lg",
+                title: `Add ${emoji}`,
+                children: emoji
+              },
+              emoji
+            )) })
+          ] }, group.label))
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "hidden md:flex w-36 shrink-0 flex-col gap-1.5", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("span", { className: "text-[10px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+            "Active (",
+            stickerOverlays.length,
+            ")"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1 overflow-y-auto", children: [
+            stickerOverlays.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[11px]", style: { color: "var(--kt-text-faint)" }, children: "Click to add stickers" }),
+            stickerOverlays.map((o) => {
+              if (o.type !== "sticker") return null;
+              return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+                "div",
+                {
+                  className: "flex items-center justify-between px-2 py-1 rounded",
+                  style: { background: "var(--kt-bg-subtle)" },
+                  children: [
+                    o.imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("img", { src: o.imageUrl, alt: "", className: "w-6 h-6 object-cover rounded" }) : /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-lg", children: o.emoji }),
+                    /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+                      "button",
+                      {
+                        onClick: () => removeOverlay(o.id),
+                        className: "transition-colors",
+                        style: { color: "var(--kt-text-faint)" },
+                        children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("svg", { className: "w-3 h-3", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("path", { fillRule: "evenodd", d: "M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z", clipRule: "evenodd" }) })
+                      }
+                    )
+                  ]
+                },
+                o.id
+              );
+            })
+          ] })
+        ] })
+      ] })
+    }
+  );
+}
+
+// components/editor/panels/VoiceRecorder.tsx
+var import_react12 = require("react");
+var import_shallow3 = require("zustand/react/shallow");
+var import_jsx_runtime15 = require("react/jsx-runtime");
+function VoiceRecorder() {
+  const [isRecording, setIsRecording] = (0, import_react12.useState)(false);
+  const [recordingDuration, setRecordingDuration] = (0, import_react12.useState)(0);
+  const mediaRecorderRef = (0, import_react12.useRef)(null);
+  const chunksRef = (0, import_react12.useRef)([]);
+  const timerRef = (0, import_react12.useRef)(null);
+  const streamRef = (0, import_react12.useRef)(null);
+  const recordingDurationRef = (0, import_react12.useRef)(0);
+  const freezeStartRef = (0, import_react12.useRef)(0);
+  const overlays = useEditorStore((0, import_shallow3.useShallow)((s) => s.overlays.filter((o) => o.type === "voice")));
+  const addVoiceOverlay = useEditorStore((s) => s.addVoiceOverlay);
+  const removeOverlay = useEditorStore((s) => s.removeOverlay);
+  const updateOverlay = useEditorStore((s) => s.updateOverlay);
+  const selectedOverlayId = useEditorStore((s) => s.selectedOverlayId);
+  const selectOverlay = useEditorStore((s) => s.selectOverlay);
+  const duration = useEditorStore((s) => s.duration);
+  const setPlaying = useEditorStore((s) => s.setPlaying);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const addFreeze = useEditorStore((s) => s.addFreeze);
+  const currentTime = useEditorStore((s) => s.currentTime);
+  (0, import_react12.useEffect)(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+  const startRecording = (0, import_react12.useCallback)(async () => {
+    setPlaying(false);
+    setPlaybackRate(0);
+    freezeStartRef.current = currentTime;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4" });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
+        const url = URL.createObjectURL(blob);
+        const duration2 = recordingDurationRef.current;
+        addVoiceOverlay({ audioUrl: url, duration: duration2 });
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      };
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingDurationRef.current = 0;
+      timerRef.current = setInterval(() => {
+        recordingDurationRef.current += 1;
+        setRecordingDuration(recordingDurationRef.current);
+      }, 1e3);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+    }
+  }, [addVoiceOverlay]);
+  const stopRecording = (0, import_react12.useCallback)(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsRecording(false);
+    const freezeEnd = useEditorStore.getState().currentTime;
+    if (freezeEnd > freezeStartRef.current) {
+      addFreeze(freezeStartRef.current, freezeEnd);
+    }
+  }, [addFreeze]);
+  const formatTime2 = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col gap-3 p-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("p", { className: "text-xs font-medium", style: { color: "var(--kt-text-secondary)" }, children: "Voice Comment" }),
+    /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+      "button",
+      {
+        onClick: isRecording ? stopRecording : startRecording,
+        className: "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+        style: {
+          background: isRecording ? "var(--kt-accent)" : "var(--kt-bg-subtle-hover)",
+          color: isRecording ? "#fff" : "var(--kt-text-primary)"
+        },
+        children: isRecording ? /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "w-2.5 h-2.5 rounded-full bg-white animate-pulse" }),
+          "Stop Recording (",
+          formatTime2(recordingDuration),
+          ")"
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-4 h-4", fill: "currentColor", viewBox: "0 0 20 20", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
+          "Start Recording"
+        ] })
+      }
+    ),
+    overlays.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex flex-col gap-1.5 mt-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("p", { className: "text-[10px] font-medium uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: [
+        "Recorded (",
+        overlays.length,
+        ")"
+      ] }),
+      overlays.map((overlay) => {
+        if (overlay.type !== "voice") return null;
+        const isSelected = overlay.id === selectedOverlayId;
+        const voiceDuration = overlay.endTime - overlay.startTime;
+        return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+            "div",
+            {
+              onClick: () => selectOverlay(isSelected ? null : overlay.id),
+              className: "flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors text-xs",
+              style: {
+                background: isSelected ? "var(--kt-bg-subtle-hover)" : "transparent",
+                color: "var(--kt-text-primary)"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-4 h-4 shrink-0", fill: "currentColor", viewBox: "0 0 20 20", style: { color: "var(--kt-accent)" }, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { fillRule: "evenodd", d: "M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z", clipRule: "evenodd" }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "flex-1 truncate", children: [
+                  "Voice ",
+                  formatTime2(voiceDuration)
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                  "button",
+                  {
+                    onClick: (e) => {
+                      e.stopPropagation();
+                      removeOverlay(overlay.id);
+                    },
+                    className: "p-1 rounded hover:opacity-70 transition-opacity",
+                    style: { color: "var(--kt-text-muted)" },
+                    children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" }) })
+                  }
+                )
+              ]
+            }
+          ),
+          isSelected && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex gap-2 mt-1.5 px-2.5", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "Start" }),
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: duration,
+                  step: 0.1,
+                  value: Math.round(overlay.startTime * 10) / 10,
+                  onChange: (e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val >= 0 && val < overlay.endTime) {
+                      updateOverlay(overlay.id, { startTime: val });
+                    }
+                  },
+                  className: "w-full px-2 py-1 rounded text-xs",
+                  style: {
+                    background: "var(--kt-bg-subtle)",
+                    color: "var(--kt-text-primary)",
+                    border: "1px solid var(--kt-border-color, transparent)"
+                  }
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "flex-1", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("label", { className: "text-[10px] block mb-0.5", style: { color: "var(--kt-text-muted)" }, children: "End" }),
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+                "input",
+                {
+                  type: "number",
+                  min: 0,
+                  max: duration,
+                  step: 0.1,
+                  value: Math.round(overlay.endTime * 10) / 10,
+                  onChange: (e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val > overlay.startTime && val <= duration) {
+                      updateOverlay(overlay.id, { endTime: val });
+                    }
+                  },
+                  className: "w-full px-2 py-1 rounded text-xs",
+                  style: {
+                    background: "var(--kt-bg-subtle)",
+                    color: "var(--kt-text-primary)",
+                    border: "1px solid var(--kt-border-color, transparent)"
+                  }
+                }
+              )
+            ] })
+          ] })
+        ] }, overlay.id);
+      })
+    ] })
+  ] });
+}
+
+// hooks/useKeyboardShortcuts.ts
+var import_react13 = require("react");
+function useKeyboardShortcuts() {
+  const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
+  const setZoomFn = useEditorStore((s) => s.setZoom);
+  const splitClipAt = useEditorStore((s) => s.splitClipAt);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const removeClip = useEditorStore((s) => s.removeClip);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const captureHistory = useEditorStore((s) => s.captureHistory);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  (0, import_react13.useEffect)(() => {
+    const handler = (e) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const { currentTime, fps, duration, zoom, playbackRate } = useEditorStore.getState();
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          togglePlayAction();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          setCurrentTime(currentTime - (e.shiftKey ? 1 : 1 / fps));
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          setCurrentTime(currentTime + (e.shiftKey ? 1 : 1 / fps));
+          break;
+        case "Home":
+          e.preventDefault();
+          setCurrentTime(0);
+          break;
+        case "End":
+          e.preventDefault();
+          setCurrentTime(duration);
+          break;
+        case "=":
+        case "+":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            setZoomFn(zoom * 1.25);
+          }
+          break;
+        case "-":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            setZoomFn(zoom / 1.25);
+          }
+          break;
+        case "z":
+        case "Z":
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault();
+            if (e.shiftKey) redo();
+            else undo();
+          }
+          break;
+        case "s":
+        case "S":
+          if (selectedClipId) {
+            e.preventDefault();
+            captureHistory();
+            splitClipAt(selectedClipId, currentTime);
+          }
+          break;
+        case "Delete":
+        case "Backspace":
+          if (selectedClipId) {
+            e.preventDefault();
+            captureHistory();
+            removeClip(selectedClipId);
+          }
+          break;
+        case "[":
+          e.preventDefault();
+          setPlaybackRate(Math.max(0, playbackRate - 0.25));
+          break;
+        case "]":
+          e.preventDefault();
+          setPlaybackRate(Math.min(2, playbackRate + 0.25));
+          break;
+        case "0":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            setPlaybackRate(0);
+          }
+          break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [setCurrentTime, setZoomFn, splitClipAt, selectedClipId, removeClip, undo, redo, captureHistory]);
+}
+
+// components/editor/Editor.tsx
+var import_shallow4 = require("zustand/react/shallow");
+var import_jsx_runtime16 = require("react/jsx-runtime");
+function Editor() {
+  const [activeTool, setActiveTool] = (0, import_react14.useState)("trim");
+  const setCropToolActive = useEditorStore((s) => s.setCropToolActive);
+  const { status: exportStatus, progress: exportProgress, outputUrl } = useEditorStore(
+    (0, import_shallow4.useShallow)((s) => ({ status: s.status, progress: s.progress, outputUrl: s.outputUrl }))
+  );
+  const resetExport = useEditorStore((s) => s.resetExport);
+  const isExporting = exportStatus === "preparing" || exportStatus === "encoding";
+  const isExportDone = exportStatus === "done" && !!outputUrl;
+  const showOverlay = isExporting || isExportDone;
+  const { importFiles } = useVideoImport();
+  const { downloadExport, cancelExport } = useExport();
+  useKeyboardShortcuts();
+  const handleToolChange = (0, import_react14.useCallback)((tool) => {
+    setActiveTool(tool);
+    setCropToolActive(tool === "crop");
+  }, [setCropToolActive]);
+  const onDragOver = (0, import_react14.useCallback)((e) => {
+    e.preventDefault();
+  }, []);
+  const onDrop = (0, import_react14.useCallback)(
+    (e) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
+      if (files.length > 0) importFiles(files);
+    },
+    [importFiles]
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(
+    "div",
+    {
+      className: "relative flex flex-col w-full h-full overflow-hidden rounded-xl",
+      style: { background: "var(--kt-bg-base)" },
+      onDragOver,
+      onDrop,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(import_framer_motion3.AnimatePresence, { children: showOverlay && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+          import_framer_motion3.motion.div,
+          {
+            initial: { opacity: 0 },
+            animate: { opacity: 1 },
+            exit: { opacity: 0 },
+            className: "absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 backdrop-blur-sm rounded-xl",
+            style: { background: "var(--kt-bg-overlay)" },
+            children: isExportDone ? /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "w-10 h-10 flex items-center justify-center rounded-full", style: { background: "var(--kt-success-bg)" }, children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("svg", { className: "w-5 h-5", style: { color: "var(--kt-success)" }, fill: "none", stroke: "currentColor", strokeWidth: 2.5, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 13l4 4L19 7" }) }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Export complete" }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex items-center gap-3 mt-1", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                  "button",
+                  {
+                    onClick: () => {
+                      downloadExport(outputUrl);
+                      resetExport();
+                    },
+                    className: "px-5 h-9 rounded-lg text-sm font-semibold transition-colors cursor-pointer",
+                    style: { background: "var(--kt-success-btn)", color: "var(--kt-text-primary)" },
+                    children: "Download"
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                  "button",
+                  {
+                    onClick: resetExport,
+                    className: "kt-btn-cancel px-5 h-9 rounded-lg text-sm font-medium transition-colors",
+                    children: "Cancel"
+                  }
+                )
+              ] })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_jsx_runtime16.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("p", { className: "text-sm font-semibold", style: { color: "var(--kt-text-primary)" }, children: "Exporting\u2026" }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "w-64 h-1.5 rounded-full overflow-hidden", style: { background: "var(--kt-slider-track)" }, children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  className: "h-full rounded-full",
+                  style: { background: "var(--kt-accent)" },
+                  animate: { width: `${exportProgress}%` },
+                  transition: { duration: 0.3 }
+                }
+              ) }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("p", { className: "text-xs tabular-nums", style: { color: "var(--kt-text-tertiary)" }, children: [
+                exportProgress,
+                "%"
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                "button",
+                {
+                  onClick: cancelExport,
+                  className: "kt-btn-cancel mt-1 px-5 h-9 rounded-lg text-sm font-medium transition-colors",
+                  children: "Cancel"
+                }
+              )
+            ] })
+          }
+        ) }),
+        /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(TopBar, {}),
+        /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-1 overflow-hidden min-h-0 md:flex-row flex-col", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "hidden md:flex", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange }) }),
+          /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)("div", { className: "flex flex-col flex-1 overflow-hidden min-w-0", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(PreviewPanel, { activeTool }),
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { className: "flex md:hidden", children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Sidebar, { activeTool, onToolChange: handleToolChange, horizontal: true }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime16.jsxs)(import_framer_motion3.AnimatePresence, { mode: "wait", initial: false, children: [
+              activeTool === "trim" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(TrimPanel, {})
+                },
+                "trim"
+              ),
+              activeTool === "finetune" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(FinetunePanel, {})
+                },
+                "finetune"
+              ),
+              activeTool === "filter" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(FilterPanel, {})
+                },
+                "filter"
+              ),
+              activeTool === "crop" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(CropPanel, {})
+                },
+                "crop"
+              ),
+              activeTool === "resize" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(ResizePanel, {})
+                },
+                "resize"
+              ),
+              activeTool === "annotate" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(AnnotatePanel, {})
+                },
+                "annotate"
+              ),
+              activeTool === "sticker" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(StickerPanel, {})
+                },
+                "sticker"
+              ),
+              activeTool === "voice" && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
+                import_framer_motion3.motion.div,
+                {
+                  initial: { opacity: 0, y: 8 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 8 },
+                  transition: { duration: 0.15 },
+                  children: /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(VoiceRecorder, {})
+                },
+                "voice"
+              )
+            ] })
+          ] })
+        ] })
+      ]
+    }
+  );
+}
+
+// lib/colorUtils.ts
+function hexToRgb(hex) {
+  const m = hex.replace("#", "").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return null;
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+function luminance(r, g, b) {
+  const [rs, gs, bs] = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+function deriveAccentVars(hex, isDark) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return {};
+  const [r, g, b] = rgb;
+  const lum = luminance(r, g, b);
+  const textColor = lum > 0.4 ? "#18181b" : "#ffffff";
+  const factor = isDark ? 1.15 : 0.85;
+  const clamp = (v) => Math.min(255, Math.max(0, Math.round(v)));
+  const hoverHex = `#${[r, g, b].map((c) => clamp(c * factor).toString(16).padStart(2, "0")).join("")}`;
+  return {
+    "accent": hex,
+    "accent-hover": hoverHex,
+    "accent-text": textColor,
+    "accent-subtle-bg": `rgba(${r}, ${g}, ${b}, ${isDark ? 0.15 : 0.12})`,
+    "accent-subtle-border": `rgba(${r}, ${g}, ${b}, ${isDark ? 0.4 : 0.35})`,
+    "accent-strong-border": `rgba(${r}, ${g}, ${b}, ${isDark ? 0.9 : 0.8})`
+  };
+}
+
+// src/Kutlass.tsx
+var import_jsx_runtime17 = require("react/jsx-runtime");
+function Kutlass({
+  className,
+  style,
+  theme = "dark",
+  accent,
+  colors,
+  exportSettings,
+  ffmpegPaths,
+  onExportComplete
+}) {
+  const colorOverrides = (0, import_react15.useMemo)(() => {
+    const vars = {};
+    if (accent) {
+      const derived = deriveAccentVars(accent, theme === "dark");
+      for (const [k, v] of Object.entries(derived)) vars[`--kt-${k}`] = v;
+    }
+    if (colors) {
+      for (const [k, v] of Object.entries(colors)) {
+        if (v) vars[`--kt-${k}`] = v;
+      }
+    }
+    return vars;
+  }, [accent, colors, theme]);
+  (0, import_react15.useEffect)(() => {
+    if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
+  }, [ffmpegPaths]);
+  (0, import_react15.useEffect)(() => {
+    if (exportSettings) {
+      useEditorStore.getState().updateExportSettings(exportSettings);
+    }
+  }, [exportSettings]);
+  (0, import_react15.useEffect)(() => {
+    if (!onExportComplete) return;
+    return useEditorStore.subscribe((state, prev) => {
+      if (state.status === "done" && prev.status !== "done" && state.outputUrl) {
+        fetch(state.outputUrl).then((r) => r.blob()).then((blob) => onExportComplete(blob)).catch(console.error);
+      }
+    });
+  }, [onExportComplete]);
+  return /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(
+    "div",
+    {
+      "data-kt-theme": theme,
+      className: `kutlass-editor ${className != null ? className : ""}`,
+      style: __spreadValues(__spreadValues({ width: "100%", height: "100%" }, colorOverrides), style),
+      children: /* @__PURE__ */ (0, import_jsx_runtime17.jsx)(Editor, {})
+    }
+  );
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  Kutlass,
+  setFFmpegPaths
+});
+//# sourceMappingURL=index.js.map

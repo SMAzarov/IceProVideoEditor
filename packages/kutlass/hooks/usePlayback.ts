@@ -124,7 +124,7 @@ export function usePlayback(
     return () => clearTimeout(timer);
   }, [clipsLength]);
 
-  // ── RAF loop — live playback ─────────────────────────────────────────────────
+  // ── RAF loop — live playback with variable speed ────────────────────────────
   useEffect(() => {
     if (!isPlaying) {
       if (rafRef.current !== null) {
@@ -134,8 +134,35 @@ export function usePlayback(
       return;
     }
 
-    const loop = () => {
-      const { duration } = useEditorStore.getState();
+    let lastTime = performance.now();
+    let accumulated = 0;
+
+    const loop = (now: number) => {
+      const { duration, playbackRate } = useEditorStore.getState();
+
+      // If playbackRate is 0, treat as paused — don't advance time
+      if (playbackRate === 0) {
+        lastTime = now;
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      // Accumulate real elapsed time, scaled by playbackRate
+      const delta = (now - lastTime) / 1000; // seconds
+      lastTime = now;
+      accumulated += delta * playbackRate;
+
+      // Only advance when we've accumulated at least one frame's worth of time
+      const frameDuration = 1 / 30; // ~33ms, roughly one frame
+      if (accumulated < frameDuration) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
+
+      // How many frames to advance
+      const steps = Math.floor(accumulated / frameDuration);
+      accumulated -= steps * frameDuration;
+
       const currentTime = useEditorStore.getState().currentTime;
       const active = getActiveClipNow(currentTime);
 
@@ -144,9 +171,6 @@ export function usePlayback(
         const timelineTime = active.clip.startTime + videoTime - active.clip.trimIn;
 
         if (timelineTime >= duration) {
-          // Stop playback and reset to start — setCurrentTime(0) triggers the
-          // subscription to render frame 0, so don't call setCurrentTime(duration)
-          // first (that would clear the canvas and block the frame-0 render via renderingRef).
           useEditorStore.getState().setPlaying(false);
           active.decoder.stopPlayback();
           useEditorStore.getState().setCurrentTime(0);

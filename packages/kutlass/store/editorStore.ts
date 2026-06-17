@@ -6,6 +6,7 @@ import { createExportSlice, ExportState, ExportActions } from "./slices/exportSl
 import { createOverlaysSlice, OverlaysState, OverlaysActions } from "./slices/overlaysSlice";
 import { createDrawingSlice, DrawingState, DrawingActions } from "./slices/drawingSlice";
 import { createHistorySlice, HistoryState, HistoryActions } from "./slices/historySlice";
+import { createFreezeSlice, FreezeState, FreezeActions } from "./slices/freezeSlice";
 
 export type EditorStore = TimelineState &
   TimelineActions &
@@ -20,7 +21,9 @@ export type EditorStore = TimelineState &
   DrawingState &
   DrawingActions &
   HistoryState &
-  HistoryActions;
+  HistoryActions &
+  FreezeState &
+  FreezeActions;
 
 export const useEditorStore = create<EditorStore>()((set, get) => ({
   ...createTimelineSlice(set as Parameters<typeof createTimelineSlice>[0], get),
@@ -30,10 +33,17 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     get as Parameters<typeof createEffectsSlice>[1]
   ),
   ...createExportSlice(set as Parameters<typeof createExportSlice>[0]),
-  ...createOverlaysSlice(set as Parameters<typeof createOverlaysSlice>[0]),
-  ...createDrawingSlice(set as Parameters<typeof createDrawingSlice>[0]),
+  ...createOverlaysSlice(
+    set as Parameters<typeof createOverlaysSlice>[0],
+    get as Parameters<typeof createOverlaysSlice>[1]
+  ),
+  ...createDrawingSlice(
+    set as Parameters<typeof createDrawingSlice>[0],
+    get as Parameters<typeof createDrawingSlice>[1]
+  ),
   ...createHistorySlice(
     set as Parameters<typeof createHistorySlice>[0],
     get as Parameters<typeof createHistorySlice>[1]
   ),
+  ...createFreezeSlice(set as Parameters<typeof createFreezeSlice>[0]),
 }));

@@ -13,6 +13,7 @@ export function useKeyboardShortcuts() {
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
   const captureHistory = useEditorStore((s) => s.captureHistory);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -21,7 +22,7 @@ export function useKeyboardShortcuts() {
         e.target instanceof HTMLTextAreaElement
       ) return;
 
-      const { currentTime, fps, duration, zoom } = useEditorStore.getState();
+      const { currentTime, fps, duration, zoom, playbackRate } = useEditorStore.getState();
 
       switch (e.key) {
         case " ":
@@ -65,6 +66,20 @@ export function useKeyboardShortcuts() {
         case "Delete":
         case "Backspace":
           if (selectedClipId) { e.preventDefault(); captureHistory(); removeClip(selectedClipId); }
+          break;
+        case "[":
+          e.preventDefault();
+          setPlaybackRate(Math.max(0, playbackRate - 0.25));
+          break;
+        case "]":
+          e.preventDefault();
+          setPlaybackRate(Math.min(2, playbackRate + 0.25));
+          break;
+        case "0":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            setPlaybackRate(0);
+          }
           break;
       }
     };

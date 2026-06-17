@@ -118,6 +118,15 @@ export function FinetunePanel() {
           onValueChange={(v) => set("opacity", v / 100)}
           onPointerDown={handleSliderPointerDown}
         />
+        <SliderRow
+          label="Speed"
+          value={Math.round(effects.speed * 100)}
+          min={25}
+          max={400}
+          displayValue={`${effects.speed.toFixed(2)}x`}
+          onValueChange={(v) => set("speed", v / 100)}
+          onPointerDown={handleSliderPointerDown}
+        />
       </div>
     </div>
   );

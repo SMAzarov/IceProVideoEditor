@@ -14,6 +14,9 @@ export function TopBar() {
   const canRedo = useEditorStore((s) => s.future.length > 0);
   const exportStatus = useEditorStore((s) => s.status);
   const clips = useEditorStore((s) => s.clips);
+  const setPlaying = useEditorStore((s) => s.setPlaying);
+  const playbackRate = useEditorStore((s) => s.playbackRate);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
   const { startExport } = useExport();
   const { replaceImport } = useVideoImport();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,8 +70,32 @@ export function TopBar() {
         </button>
       </div>
 
+      {/* Speed control — visible on all tabs */}
+      <div className="flex items-center gap-1 mr-2">
+        <button
+          onClick={() => setPlaybackRate(Math.max(0, playbackRate - 0.25))}
+          className="kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none"
+          title="Slower ([)"
+        >
+          −
+        </button>
+        <span
+          className="text-xs font-mono tabular-nums min-w-[2.5ch] text-center"
+          style={{ color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" }}
+        >
+          {playbackRate === 0 ? "❚❚" : `${playbackRate}x`}
+        </span>
+        <button
+          onClick={() => setPlaybackRate(Math.min(2, playbackRate + 0.25))}
+          className="kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none"
+          title="Faster (])"
+        >
+          +
+        </button>
+      </div>
+
       {/* Upload & Done */}
-      <div className="flex items-center gap-1.5 md:gap-2 ml-auto">
+      <div className="flex items-center gap-1.5 md:gap-2">
         {/* Hidden file input for upload */}
         <input
           ref={fileInputRef}
@@ -93,7 +120,7 @@ export function TopBar() {
             </button>
             <button
               disabled={isExporting}
-              onClick={startExport}
+              onClick={() => { setPlaying(false); startExport(); }}
               className="kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Done

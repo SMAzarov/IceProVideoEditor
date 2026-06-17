@@ -3,12 +3,22 @@
 import { useEditorStore } from "@/store/editorStore";
 import { formatTime } from "@/lib/timeline/timeUtils";
 
+const SPEED_PRESETS = [0, 0.25, 0.5, 0.75, 1, 1.5, 2];
+
 export function PlaybackControls() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const togglePlay = useEditorStore((s) => s.togglePlay);
   const currentTime = useEditorStore((s) => s.currentTime);
   const duration = useEditorStore((s) => s.duration);
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
+  const playbackRate = useEditorStore((s) => s.playbackRate);
+  const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+
+  const cycleSpeed = () => {
+    const idx = SPEED_PRESETS.indexOf(playbackRate);
+    const next = (idx + 1) % SPEED_PRESETS.length;
+    setPlaybackRate(SPEED_PRESETS[next]);
+  };
 
   return (
     <div className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 backdrop-blur-sm border-t" style={{ background: "var(--kt-bg-surface)", borderColor: "var(--kt-border-strong)" }}>
@@ -78,6 +88,18 @@ export function PlaybackControls() {
           />
         </div>
       </div>
+
+      {/* Speed control */}
+      <button
+        onClick={cycleSpeed}
+        className="kt-btn-ghost text-xs font-mono px-2 py-1 rounded transition-colors"
+        style={{
+          color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)",
+        }}
+        title={`Speed: ${playbackRate}x (click to cycle, [ / ] to adjust)`}
+      >
+        {playbackRate === 0 ? "❚❚" : `${playbackRate}x`}
+      </button>
     </div>
   );
 }
