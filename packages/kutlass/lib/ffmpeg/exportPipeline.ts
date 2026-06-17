@@ -237,6 +237,75 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
   // Cache for freeze frames — when we hit a freeze segment we repeat the last rendered frame
   let lastFrameCanvas: OffscreenCanvas | null = null;
 
+  // ── Helper: render a single frame (decode + composite) ──────────────────
+  async function renderFrame(
+    clip: Clip,
+    outIdx: number,
+    normalFrames: number,
+    sourceFrameCount: number,
+    decoder: ReturnType<typeof getDecoderForFile>,
+    effects: EffectParams,
+    speed: number,
+    isFrozen: boolean
+  ): Promise<OffscreenCanvas> {
+    if (isFrozen && lastFrameCanvas) {
+      const canvas = new OffscreenCanvas(outW, outH);
+      const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.drawImage(lastFrameCanvas, 0, 0);
+      return canvas;
+    }
+
+    const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
+    const sourceTime = clip.trimIn + srcIdx / fps;
+
+    const frame = await decoder.requestFrame(
+      clip.file,
+      Math.min(sourceTime, clip.trimOut - 0.001)
+    );
+
+    const canvas = new OffscreenCanvas(outW, outH);
+
+    if (frame) {
+      const tmp = new OffscreenCanvas(1, 1);
+      renderer.renderFrame(frame, tmp, effects);
+      frame.close();
+
+      const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.drawImage(tmp, 0, 0, outW, outH);
+    }
+
+    lastFrameCanvas = canvas;
+    return canvas;
+  }
+
+  // ── Helper: composite overlays + convert to blob ────────────────────────
+  async function compositeAndWrite(
+    canvas: OffscreenCanvas,
+    frameTime: number,
+    globalIdx: number
+  ): Promise<void> {
+    const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+
+    // Composite annotation strokes
+    const visibleStrokes = strokes.filter(
+      (s) => s.startTime <= frameTime && frameTime < s.endTime
+    );
+    if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
+
+    // Composite sticker / text overlays
+    const visibleOverlays = overlays.filter(
+      (o) => o.startTime <= frameTime && frameTime < o.endTime
+    );
+    if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
+
+    // Convert to WebP blob and write to FFmpeg FS
+    // WebP encodes ~2x faster than JPEG in browsers and produces smaller files.
+    // FFmpeg WASM supports WebP decoding (--enable-libwebp).
+    const blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.8 });
+    const frameName = `frame_${String(globalIdx).padStart(6, "0")}.webp`;
+    await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
+  }
+
   for (const clip of clips) {
     const effects = effectsMap[clip.id] ?? DEFAULT_EFFECTS;
     const speed = effects.speed ?? 1;
@@ -265,79 +334,64 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
     // during freeze — the source frame stays locked while we repeat it.
     let normalFrames = 0;
 
-    for (let outIdx = 0; outIdx < totalOutputFrames; outIdx++) {
+    // Process frames in batches for parallelism
+    const BATCH_SIZE = 8;
+    for (let batchStart = 0; batchStart < totalOutputFrames; batchStart += BATCH_SIZE) {
       if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
 
-      // frameTime is based on outIdx so it advances even during freeze.
-      // This ensures freeze segments have a finite duration — when outIdx
-      // passes freeze.endTime, isFrozen becomes false and video resumes.
-      const frameTime = clip.startTime + outIdx / fps * speed;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalOutputFrames);
+      const batchSize = batchEnd - batchStart;
 
-      // Check if this frame falls within a freeze segment
-      const isFrozen = freezes.some(
-        (f) => frameTime >= f.startTime && frameTime < f.endTime
-      );
+      // First pass: determine freeze status and compute frameTime for each frame in batch
+      const frameInfos: Array<{
+        outIdx: number;
+        frameTime: number;
+        isFrozen: boolean;
+        normalFramesAtStart: number;
+      }> = [];
 
-      // Source index is based on normalFrames — it only advances when we
-      // actually decode a new frame, not when we repeat a frozen one.
-      const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
-      const sourceTime = clip.trimIn + srcIdx / fps;
-
-      let canvas: OffscreenCanvas;
-
-      if (isFrozen && lastFrameCanvas) {
-        // Reuse the last rendered frame — freeze the video
-        canvas = new OffscreenCanvas(outW, outH);
-        const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
-        ctx.drawImage(lastFrameCanvas, 0, 0);
-      } else {
-        const frame = await decoder.requestFrame(
-          clip.file,
-          Math.min(sourceTime, clip.trimOut - 0.001)
+      let localNormalFrames = normalFrames;
+      for (let i = batchStart; i < batchEnd; i++) {
+        const frameTime = clip.startTime + i / fps * speed;
+        const isFrozen = freezes.some(
+          (f) => frameTime >= f.startTime && frameTime < f.endTime
         );
-
-        // Render video frame + effects onto an OffscreenCanvas at output size
-        canvas = new OffscreenCanvas(outW, outH);
-
-        if (frame) {
-          // FrameRenderer sizes canvas to crop dimensions; we want outW×outH,
-          // so we render to a temp canvas first then scale into our target.
-          const tmp = new OffscreenCanvas(1, 1);
-          renderer.renderFrame(frame, tmp, effects);
-          frame.close();
-
-          const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
-          ctx.drawImage(tmp, 0, 0, outW, outH);
-        }
-
-        // Cache this frame for potential freeze repeats
-        lastFrameCanvas = canvas;
-
-        // Only advance normalFrames when we actually decoded a new frame
-        normalFrames++;
+        frameInfos.push({
+          outIdx: i,
+          frameTime,
+          isFrozen,
+          normalFramesAtStart: localNormalFrames,
+        });
+        if (!isFrozen) localNormalFrames++;
       }
 
-      const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
-
-      // Composite annotation strokes — only those visible at this frame time
-      const visibleStrokes = strokes.filter(
-        (s) => s.startTime <= frameTime && frameTime < s.endTime
+      // Second pass: render all frames in the batch in parallel
+      const renderPromises = frameInfos.map((info) =>
+        renderFrame(
+          clip,
+          info.outIdx,
+          info.normalFramesAtStart,
+          sourceFrameCount,
+          decoder,
+          effects,
+          speed,
+          info.isFrozen
+        )
       );
-      if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
 
-      // Composite sticker / text overlays — only those visible at this frame time
-      const visibleOverlays = overlays.filter(
-        (o) => o.startTime <= frameTime && frameTime < o.endTime
-      );
-      if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
+      const canvases = await Promise.all(renderPromises);
 
-      // Write JPEG frame to FFmpeg FS
-      const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
-      const frameName = `frame_${String(globalFrameIdx).padStart(6, "0")}.jpg`;
-      await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
+      // Third pass: composite overlays and write to FS sequentially
+      for (let j = 0; j < batchSize; j++) {
+        const info = frameInfos[j];
+        const canvas = canvases[j];
 
-      globalFrameIdx++;
-      onProgress(2 + Math.round((globalFrameIdx / totalFrames) * 68)); // 2–70%
+        await compositeAndWrite(canvas, info.frameTime, globalFrameIdx);
+
+        if (!info.isFrozen) normalFrames++;
+        globalFrameIdx++;
+        onProgress(2 + Math.round((globalFrameIdx / totalFrames) * 68)); // 2–70%
+      }
     }
   }
 
@@ -417,7 +471,7 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
   // Input options + inputs
   const args: string[] = [
     "-framerate", String(fps),
-    "-i", "frame_%06d.jpg",
+    "-i", "frame_%06d.webp",
   ];
 
   // Add audio input if we have voice overlays (must come after video input)
@@ -437,7 +491,7 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   if (settings.format === "mp4") {
     args.push("-pix_fmt", "yuv420p"); // required for H.264 compatibility
-    args.push("-preset", "fast");
+    args.push("-preset", "ultrafast");
     args.push("-movflags", "+faststart");
   }
 
@@ -472,7 +526,7 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   // Cleanup all frame files + output
   for (let i = 0; i < globalFrameIdx; i++) {
-    const name = `frame_${String(i).padStart(6, "0")}.jpg`;
+    const name = `frame_${String(i).padStart(6, "0")}.webp`;
     await ffmpeg.deleteFile(name).catch(() => {});
   }
   await ffmpeg.deleteFile(outputName).catch(() => {});

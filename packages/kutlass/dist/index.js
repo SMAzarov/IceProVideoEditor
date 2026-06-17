@@ -936,6 +936,44 @@ async function runExport(job) {
     return sum + base + extra;
   }, 0);
   let lastFrameCanvas = null;
+  async function renderFrame(clip, outIdx, normalFrames, sourceFrameCount, decoder, effects, speed, isFrozen) {
+    if (isFrozen && lastFrameCanvas) {
+      const canvas2 = new OffscreenCanvas(outW, outH);
+      const ctx = canvas2.getContext("2d");
+      ctx.drawImage(lastFrameCanvas, 0, 0);
+      return canvas2;
+    }
+    const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
+    const sourceTime = clip.trimIn + srcIdx / fps;
+    const frame = await decoder.requestFrame(
+      clip.file,
+      Math.min(sourceTime, clip.trimOut - 1e-3)
+    );
+    const canvas = new OffscreenCanvas(outW, outH);
+    if (frame) {
+      const tmp = new OffscreenCanvas(1, 1);
+      renderer2.renderFrame(frame, tmp, effects);
+      frame.close();
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(tmp, 0, 0, outW, outH);
+    }
+    lastFrameCanvas = canvas;
+    return canvas;
+  }
+  async function compositeAndWrite(canvas, frameTime, globalIdx) {
+    const ctx = canvas.getContext("2d");
+    const visibleStrokes = strokes.filter(
+      (s) => s.startTime <= frameTime && frameTime < s.endTime
+    );
+    if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
+    const visibleOverlays = overlays.filter(
+      (o) => o.startTime <= frameTime && frameTime < o.endTime
+    );
+    if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
+    const blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.8 });
+    const frameName = `frame_${String(globalIdx).padStart(6, "0")}.webp`;
+    await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
+  }
   for (const clip of clips) {
     const effects = (_b = effectsMap[clip.id]) != null ? _b : DEFAULT_EFFECTS;
     const speed = (_c = effects.speed) != null ? _c : 1;
@@ -954,49 +992,47 @@ async function runExport(job) {
     }
     const totalOutputFrames = outputFrameCount + extraFreezeFrames;
     let normalFrames = 0;
-    for (let outIdx = 0; outIdx < totalOutputFrames; outIdx++) {
+    const BATCH_SIZE = 8;
+    for (let batchStart = 0; batchStart < totalOutputFrames; batchStart += BATCH_SIZE) {
       if (signal == null ? void 0 : signal.aborted) throw new DOMException("Export cancelled", "AbortError");
-      const frameTime = clip.startTime + outIdx / fps * speed;
-      const isFrozen = freezes.some(
-        (f) => frameTime >= f.startTime && frameTime < f.endTime
-      );
-      const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
-      const sourceTime = clip.trimIn + srcIdx / fps;
-      let canvas;
-      if (isFrozen && lastFrameCanvas) {
-        canvas = new OffscreenCanvas(outW, outH);
-        const ctx2 = canvas.getContext("2d");
-        ctx2.drawImage(lastFrameCanvas, 0, 0);
-      } else {
-        const frame = await decoder.requestFrame(
-          clip.file,
-          Math.min(sourceTime, clip.trimOut - 1e-3)
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalOutputFrames);
+      const batchSize = batchEnd - batchStart;
+      const frameInfos = [];
+      let localNormalFrames = normalFrames;
+      for (let i = batchStart; i < batchEnd; i++) {
+        const frameTime = clip.startTime + i / fps * speed;
+        const isFrozen = freezes.some(
+          (f) => frameTime >= f.startTime && frameTime < f.endTime
         );
-        canvas = new OffscreenCanvas(outW, outH);
-        if (frame) {
-          const tmp = new OffscreenCanvas(1, 1);
-          renderer2.renderFrame(frame, tmp, effects);
-          frame.close();
-          const ctx2 = canvas.getContext("2d");
-          ctx2.drawImage(tmp, 0, 0, outW, outH);
-        }
-        lastFrameCanvas = canvas;
-        normalFrames++;
+        frameInfos.push({
+          outIdx: i,
+          frameTime,
+          isFrozen,
+          normalFramesAtStart: localNormalFrames
+        });
+        if (!isFrozen) localNormalFrames++;
       }
-      const ctx = canvas.getContext("2d");
-      const visibleStrokes = strokes.filter(
-        (s) => s.startTime <= frameTime && frameTime < s.endTime
+      const renderPromises = frameInfos.map(
+        (info) => renderFrame(
+          clip,
+          info.outIdx,
+          info.normalFramesAtStart,
+          sourceFrameCount,
+          decoder,
+          effects,
+          speed,
+          info.isFrozen
+        )
       );
-      if (visibleStrokes.length > 0) drawStrokes(ctx, visibleStrokes, outW, outH);
-      const visibleOverlays = overlays.filter(
-        (o) => o.startTime <= frameTime && frameTime < o.endTime
-      );
-      if (visibleOverlays.length > 0) await drawOverlays(ctx, visibleOverlays, outW, outH);
-      const blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
-      const frameName = `frame_${String(globalFrameIdx).padStart(6, "0")}.jpg`;
-      await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
-      globalFrameIdx++;
-      onProgress(2 + Math.round(globalFrameIdx / totalFrames * 68));
+      const canvases = await Promise.all(renderPromises);
+      for (let j = 0; j < batchSize; j++) {
+        const info = frameInfos[j];
+        const canvas = canvases[j];
+        await compositeAndWrite(canvas, info.frameTime, globalFrameIdx);
+        if (!info.isFrozen) normalFrames++;
+        globalFrameIdx++;
+        onProgress(2 + Math.round(globalFrameIdx / totalFrames * 68));
+      }
     }
   }
   onProgress(70);
@@ -1041,7 +1077,7 @@ async function runExport(job) {
     "-framerate",
     String(fps),
     "-i",
-    "frame_%06d.jpg"
+    "frame_%06d.webp"
   ];
   if (hasAudioInput) {
     args.push("-i", "voice_mixed.wav");
@@ -1055,7 +1091,7 @@ async function runExport(job) {
   }
   if (settings.format === "mp4") {
     args.push("-pix_fmt", "yuv420p");
-    args.push("-preset", "fast");
+    args.push("-preset", "ultrafast");
     args.push("-movflags", "+faststart");
   }
   args.push("-y", outputName);
@@ -1079,7 +1115,7 @@ async function runExport(job) {
   const data = await ffmpeg.readFile(outputName);
   const result = data instanceof Uint8Array ? data : new TextEncoder().encode(data);
   for (let i = 0; i < globalFrameIdx; i++) {
-    const name = `frame_${String(i).padStart(6, "0")}.jpg`;
+    const name = `frame_${String(i).padStart(6, "0")}.webp`;
     await ffmpeg.deleteFile(name).catch(() => {
     });
   }
