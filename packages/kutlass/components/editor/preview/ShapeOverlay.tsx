@@ -79,10 +79,36 @@ export function ShapeOverlay({ isActive }: ShapeOverlayProps) {
         const halfH = sh / 2;
 
         ctx.save();
-        ctx.strokeStyle = "#00aaff";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        // Style-aware highlight
+        if (selected.style === "neon") {
+          ctx.shadowColor = "#00aaff";
+          ctx.shadowBlur = 12;
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(cx - halfW - 6, cy - halfH - 6, sw + 12, sh + 12);
+        } else if (selected.style === "note" || selected.style === "sticky") {
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          // Corner handles
+          const handleSize = 6;
+          ctx.fillStyle = "#00aaff";
+          [
+            [cx - halfW - 4, cy - halfH - 4],
+            [cx + halfW + 4, cy - halfH - 4],
+            [cx - halfW - 4, cy + halfH + 4],
+            [cx + halfW + 4, cy + halfH + 4],
+          ].forEach(([hx, hy]) => {
+            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          });
+        } else {
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        }
         ctx.restore();
       }
     };

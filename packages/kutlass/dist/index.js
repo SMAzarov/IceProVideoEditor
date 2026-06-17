@@ -440,6 +440,7 @@ var createShapeSlice = (set, get) => ({
   shapes: [],
   selectedShapeId: null,
   shapeTool: "rectangle",
+  shapeStyle: "simple",
   shapeColor: "#ff0000",
   shapeFillColor: "transparent",
   shapeStrokeWidth: 3,
@@ -471,6 +472,7 @@ var createShapeSlice = (set, get) => ({
   selectShape: (id) => set(() => ({ selectedShapeId: id })),
   clearShapes: () => set(() => ({ shapes: [], selectedShapeId: null })),
   setShapeTool: (tool) => set(() => ({ shapeTool: tool })),
+  setShapeStyle: (style) => set(() => ({ shapeStyle: style })),
   setShapeColor: (color) => set(() => ({ shapeColor: color })),
   setShapeFillColor: (color) => set(() => ({ shapeFillColor: color })),
   setShapeStrokeWidth: (width) => set(() => ({ shapeStrokeWidth: width })),
@@ -2652,6 +2654,15 @@ var import_react8 = require("react");
 
 // lib/webcodecs/PreviewEngine.ts
 var renderer = new FrameRenderer();
+function drawDogEar(ctx, x, y, w, h, foldSize) {
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w - foldSize, y);
+  ctx.lineTo(x + w, y + foldSize);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+}
 function drawShapesOnCtx(ctx, shapes, w, h) {
   for (const shape of shapes) {
     ctx.save();
@@ -2661,19 +2672,141 @@ function drawShapesOnCtx(ctx, shapes, w, h) {
     const sh = shape.height * h;
     const halfW = sw / 2;
     const halfH = sh / 2;
-    ctx.strokeStyle = shape.color;
-    ctx.lineWidth = shape.strokeWidth;
-    ctx.fillStyle = shape.fillColor;
+    const style = shape.style || "simple";
+    const drawPath = (drawFn) => {
+      if (style === "note") {
+        const r = Math.min(12, sw * 0.08, sh * 0.08);
+        const fold = Math.min(24, sw * 0.15, sh * 0.15);
+        const x = cx - halfW;
+        const y = cy - halfH;
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.25)";
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 3;
+        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
+        drawDogEar(ctx, x, y, sw, sh, fold);
+        ctx.fill();
+        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + sw - fold - r, y);
+        ctx.quadraticCurveTo(x + sw - fold, y, x + sw - fold, y + r);
+        ctx.lineTo(x + sw, y + fold + r);
+        ctx.lineTo(x + sw, y + sh - r);
+        ctx.quadraticCurveTo(x + sw, y + sh, x + sw - r, y + sh);
+        ctx.lineTo(x + r, y + sh);
+        ctx.quadraticCurveTo(x, y + sh, x, y + sh - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.save();
+        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + sw - fold, y);
+        ctx.lineTo(x + sw, y + fold);
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fffbe6";
+        ctx.fill();
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
+      } else if (style === "sticky") {
+        const x = cx - halfW;
+        const y = cy - halfH;
+        const angle = 0.03;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.translate(-cx, -cy);
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 3;
+        ctx.shadowOffsetY = 4;
+        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
+        ctx.beginPath();
+        ctx.roundRect(x, y, sw, sh, 4);
+        ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.translate(-cx, -cy);
+        ctx.fillStyle = shape.fillColor !== "transparent" ? shape.fillColor : "#fef08a";
+        ctx.beginPath();
+        ctx.roundRect(x, y, sw, sh, 4);
+        ctx.fill();
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.stroke();
+        ctx.restore();
+      } else if (style === "outline") {
+        const x = cx - halfW;
+        const y = cy - halfH;
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.globalAlpha = 0.4;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        ctx.globalAlpha = 1;
+        const inset = 6;
+        ctx.beginPath();
+        ctx.rect(x + inset, y + inset, sw - inset * 2, sh - inset * 2);
+        ctx.stroke();
+        ctx.restore();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          ctx.beginPath();
+          ctx.rect(x, y, sw, sh);
+          ctx.fill();
+        }
+      } else if (style === "neon") {
+        ctx.save();
+        ctx.shadowColor = shape.color;
+        ctx.shadowBlur = 20;
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth + 2;
+        ctx.globalAlpha = 0.6;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.shadowColor = shape.color;
+        ctx.shadowBlur = 8;
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = shape.strokeWidth;
+        drawFn();
+        ctx.stroke();
+        ctx.restore();
+        if (shape.fillColor !== "transparent") {
+          ctx.fillStyle = shape.fillColor;
+          drawFn();
+          ctx.fill();
+        }
+      } else {
+        drawFn();
+        if (shape.fillColor !== "transparent") ctx.fill();
+        ctx.stroke();
+      }
+    };
     if (shape.type === "rectangle") {
-      ctx.beginPath();
-      ctx.rect(cx - halfW, cy - halfH, sw, sh);
-      if (shape.fillColor !== "transparent") ctx.fill();
-      ctx.stroke();
+      drawPath(() => {
+        ctx.beginPath();
+        ctx.rect(cx - halfW, cy - halfH, sw, sh);
+      });
     } else if (shape.type === "circle") {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, halfW, halfH, 0, 0, Math.PI * 2);
-      if (shape.fillColor !== "transparent") ctx.fill();
-      ctx.stroke();
+      drawPath(() => {
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, halfW, halfH, 0, 0, Math.PI * 2);
+      });
     } else if (shape.type === "text") {
       const size = Math.round(shape.fontSize * (h / 720));
       ctx.font = `bold ${size}px sans-serif`;
@@ -2788,10 +2921,34 @@ function ShapeOverlay({ isActive }) {
         const halfW = sw / 2;
         const halfH = sh / 2;
         ctx.save();
-        ctx.strokeStyle = "#00aaff";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        if (selected.style === "neon") {
+          ctx.shadowColor = "#00aaff";
+          ctx.shadowBlur = 12;
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(cx - halfW - 6, cy - halfH - 6, sw + 12, sh + 12);
+        } else if (selected.style === "note" || selected.style === "sticky") {
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+          const handleSize = 6;
+          ctx.fillStyle = "#00aaff";
+          [
+            [cx - halfW - 4, cy - halfH - 4],
+            [cx + halfW + 4, cy - halfH - 4],
+            [cx - halfW - 4, cy + halfH + 4],
+            [cx + halfW + 4, cy + halfH + 4]
+          ].forEach(([hx, hy]) => {
+            ctx.fillRect(hx - handleSize / 2, hy - handleSize / 2, handleSize, handleSize);
+          });
+        } else {
+          ctx.strokeStyle = "#00aaff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.strokeRect(cx - halfW - 4, cy - halfH - 4, sw + 8, sh + 8);
+        }
         ctx.restore();
       }
     };
@@ -4125,6 +4282,7 @@ function AnnotatePanel() {
   const clearStrokes = useEditorStore((s) => s.clearStrokes);
   const strokes = useEditorStore((s) => s.strokes);
   const shapeTool = useEditorStore((s) => s.shapeTool);
+  const shapeStyle = useEditorStore((s) => s.shapeStyle);
   const shapeColor = useEditorStore((s) => s.shapeColor);
   const shapeFillColor = useEditorStore((s) => s.shapeFillColor);
   const shapeStrokeWidth = useEditorStore((s) => s.shapeStrokeWidth);
@@ -4134,6 +4292,7 @@ function AnnotatePanel() {
   const shapes = useEditorStore((s) => s.shapes);
   const selectedShapeId = useEditorStore((s) => s.selectedShapeId);
   const setShapeTool = useEditorStore((s) => s.setShapeTool);
+  const setShapeStyle = useEditorStore((s) => s.setShapeStyle);
   const setShapeColor = useEditorStore((s) => s.setShapeColor);
   const setShapeFillColor = useEditorStore((s) => s.setShapeFillColor);
   const setShapeStrokeWidth = useEditorStore((s) => s.setShapeStrokeWidth);
@@ -4195,6 +4354,7 @@ function AnnotatePanel() {
       ShapeTools,
       {
         shapeTool,
+        shapeStyle,
         shapeColor,
         shapeFillColor,
         shapeStrokeWidth,
@@ -4204,6 +4364,7 @@ function AnnotatePanel() {
         shapes,
         selectedShapeId,
         setShapeTool,
+        setShapeStyle,
         setShapeColor,
         setShapeFillColor,
         setShapeStrokeWidth,
@@ -4333,8 +4494,16 @@ function DrawTools({
     ] })
   ] });
 }
+var SHAPE_STYLES = [
+  { key: "simple", label: "Simple", icon: "\u25A2" },
+  { key: "note", label: "Note", icon: "\u{1F4DD}" },
+  { key: "sticky", label: "Sticky", icon: "\u{1F4CC}" },
+  { key: "outline", label: "Outline", icon: "\u25FB" },
+  { key: "neon", label: "Neon", icon: "\u{1F4A1}" }
+];
 function ShapeTools({
   shapeTool,
+  shapeStyle,
   shapeColor,
   shapeFillColor,
   shapeStrokeWidth,
@@ -4344,6 +4513,7 @@ function ShapeTools({
   shapes,
   selectedShapeId,
   setShapeTool,
+  setShapeStyle,
   setShapeColor,
   setShapeFillColor,
   setShapeStrokeWidth,
@@ -4357,6 +4527,7 @@ function ShapeTools({
   const handleAddShape = () => {
     addShape({
       type: shapeTool,
+      style: shapeStyle,
       x: 0.5,
       y: 0.5,
       width: 0.3,
@@ -4379,6 +4550,22 @@ function ShapeTools({
           children: t.label
         },
         t.key
+      )) })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-[9px] font-semibold uppercase tracking-wider", style: { color: "var(--kt-text-muted)" }, children: "Style" }),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "flex gap-1 flex-wrap", children: SHAPE_STYLES.map((s) => /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)(
+        "button",
+        {
+          onClick: () => setShapeStyle(s.key),
+          className: `flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          title: s.label,
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { className: "text-sm", children: s.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("span", { children: s.label })
+          ]
+        },
+        s.key
       )) })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex flex-col gap-1", children: [

@@ -128,9 +128,13 @@ export interface Transition {
 /** Shape annotation — rectangle, circle, or text drawn on the video */
 export type ShapeType = "rectangle" | "circle" | "text";
 
+/** Visual style for shape annotations */
+export type ShapeStyle = "simple" | "note" | "sticky" | "outline" | "neon";
+
 export interface ShapeAnnotation {
   id: string;
   type: ShapeType;
+  style: ShapeStyle;
   x: number;      // 0-1 normalized (center)
   y: number;      // 0-1 normalized (center)
   width: number;  // 0-1 normalized

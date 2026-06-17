@@ -2,7 +2,7 @@
 
 import { useEditorStore } from "@/store/editorStore";
 import { DrawingTool } from "@/store/slices/drawingSlice";
-import { ShapeType } from "@/types/editor";
+import { ShapeType, ShapeStyle } from "@/types/editor";
 
 const COLORS = ["#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00cfff", "#ffffff", "#000000"];
 const WIDTHS = [2, 4, 8, 16];
@@ -36,6 +36,7 @@ export function AnnotatePanel() {
 
   // Shape state
   const shapeTool = useEditorStore((s) => s.shapeTool);
+  const shapeStyle = useEditorStore((s) => s.shapeStyle);
   const shapeColor = useEditorStore((s) => s.shapeColor);
   const shapeFillColor = useEditorStore((s) => s.shapeFillColor);
   const shapeStrokeWidth = useEditorStore((s) => s.shapeStrokeWidth);
@@ -45,6 +46,7 @@ export function AnnotatePanel() {
   const shapes = useEditorStore((s) => s.shapes);
   const selectedShapeId = useEditorStore((s) => s.selectedShapeId);
   const setShapeTool = useEditorStore((s) => s.setShapeTool);
+  const setShapeStyle = useEditorStore((s) => s.setShapeStyle);
   const setShapeColor = useEditorStore((s) => s.setShapeColor);
   const setShapeFillColor = useEditorStore((s) => s.setShapeFillColor);
   const setShapeStrokeWidth = useEditorStore((s) => s.setShapeStrokeWidth);
@@ -108,6 +110,7 @@ export function AnnotatePanel() {
       ) : (
         <ShapeTools
           shapeTool={shapeTool}
+          shapeStyle={shapeStyle}
           shapeColor={shapeColor}
           shapeFillColor={shapeFillColor}
           shapeStrokeWidth={shapeStrokeWidth}
@@ -117,6 +120,7 @@ export function AnnotatePanel() {
           shapes={shapes}
           selectedShapeId={selectedShapeId}
           setShapeTool={setShapeTool}
+          setShapeStyle={setShapeStyle}
           setShapeColor={setShapeColor}
           setShapeFillColor={setShapeFillColor}
           setShapeStrokeWidth={setShapeStrokeWidth}
@@ -272,8 +276,17 @@ function DrawTools({
 
 // ── Shape tools ───────────────────────────────────────────────────────────────
 
+const SHAPE_STYLES: { key: ShapeStyle; label: string; icon: string }[] = [
+  { key: "simple", label: "Simple", icon: "▢" },
+  { key: "note", label: "Note", icon: "📝" },
+  { key: "sticky", label: "Sticky", icon: "📌" },
+  { key: "outline", label: "Outline", icon: "◻" },
+  { key: "neon", label: "Neon", icon: "💡" },
+];
+
 function ShapeTools({
   shapeTool,
+  shapeStyle,
   shapeColor,
   shapeFillColor,
   shapeStrokeWidth,
@@ -283,6 +296,7 @@ function ShapeTools({
   shapes,
   selectedShapeId,
   setShapeTool,
+  setShapeStyle,
   setShapeColor,
   setShapeFillColor,
   setShapeStrokeWidth,
@@ -294,6 +308,7 @@ function ShapeTools({
   clearShapes,
 }: {
   shapeTool: ShapeType;
+  shapeStyle: ShapeStyle;
   shapeColor: string;
   shapeFillColor: string;
   shapeStrokeWidth: number;
@@ -303,6 +318,7 @@ function ShapeTools({
   shapes: { id: string; type: ShapeType; text: string }[];
   selectedShapeId: string | null;
   setShapeTool: (t: ShapeType) => void;
+  setShapeStyle: (s: ShapeStyle) => void;
   setShapeColor: (c: string) => void;
   setShapeFillColor: (c: string) => void;
   setShapeStrokeWidth: (w: number) => void;
@@ -316,6 +332,7 @@ function ShapeTools({
   const handleAddShape = () => {
     addShape({
       type: shapeTool,
+      style: shapeStyle,
       x: 0.5,
       y: 0.5,
       width: 0.3,
@@ -343,6 +360,26 @@ function ShapeTools({
               }`}
             >
               {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Style selector */}
+      <div className="flex flex-col gap-1">
+        <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--kt-text-muted)" }}>Style</span>
+        <div className="flex gap-1 flex-wrap">
+          {SHAPE_STYLES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setShapeStyle(s.key)}
+              className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                shapeStyle === s.key ? "kt-btn-accent" : "kt-btn-subtle"
+              }`}
+              title={s.label}
+            >
+              <span className="text-sm">{s.icon}</span>
+              <span>{s.label}</span>
             </button>
           ))}
         </div>

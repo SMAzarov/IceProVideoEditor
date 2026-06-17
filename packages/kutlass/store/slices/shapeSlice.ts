@@ -1,10 +1,11 @@
 import { nanoid } from "nanoid";
-import { ShapeAnnotation, ShapeType } from "@/types/editor";
+import { ShapeAnnotation, ShapeType, ShapeStyle } from "@/types/editor";
 
 export interface ShapeState {
   shapes: ShapeAnnotation[];
   selectedShapeId: string | null;
   shapeTool: ShapeType;
+  shapeStyle: ShapeStyle;
   shapeColor: string;
   shapeFillColor: string;
   shapeStrokeWidth: number;
@@ -21,6 +22,7 @@ export interface ShapeActions {
   selectShape: (id: string | null) => void;
   clearShapes: () => void;
   setShapeTool: (tool: ShapeType) => void;
+  setShapeStyle: (style: ShapeStyle) => void;
   setShapeColor: (color: string) => void;
   setShapeFillColor: (color: string) => void;
   setShapeStrokeWidth: (width: number) => void;
@@ -37,6 +39,7 @@ export const createShapeSlice = (set: Set, get: Get): ShapeState & ShapeActions 
   shapes: [],
   selectedShapeId: null,
   shapeTool: "rectangle",
+  shapeStyle: "simple",
   shapeColor: "#ff0000",
   shapeFillColor: "transparent",
   shapeStrokeWidth: 3,
@@ -76,6 +79,7 @@ export const createShapeSlice = (set: Set, get: Get): ShapeState & ShapeActions 
   clearShapes: () => set(() => ({ shapes: [], selectedShapeId: null })),
 
   setShapeTool: (tool) => set(() => ({ shapeTool: tool })),
+  setShapeStyle: (style) => set(() => ({ shapeStyle: style })),
   setShapeColor: (color) => set(() => ({ shapeColor: color })),
   setShapeFillColor: (color) => set(() => ({ shapeFillColor: color })),
   setShapeStrokeWidth: (width) => set(() => ({ shapeStrokeWidth: width })),

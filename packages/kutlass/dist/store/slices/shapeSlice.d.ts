@@ -1,8 +1,9 @@
-import { ShapeAnnotation, ShapeType } from "@/types/editor";
+import { ShapeAnnotation, ShapeType, ShapeStyle } from "@/types/editor";
 export interface ShapeState {
     shapes: ShapeAnnotation[];
     selectedShapeId: string | null;
     shapeTool: ShapeType;
+    shapeStyle: ShapeStyle;
     shapeColor: string;
     shapeFillColor: string;
     shapeStrokeWidth: number;
@@ -18,6 +19,7 @@ export interface ShapeActions {
     selectShape: (id: string | null) => void;
     clearShapes: () => void;
     setShapeTool: (tool: ShapeType) => void;
+    setShapeStyle: (style: ShapeStyle) => void;
     setShapeColor: (color: string) => void;
     setShapeFillColor: (color: string) => void;
     setShapeStrokeWidth: (width: number) => void;
