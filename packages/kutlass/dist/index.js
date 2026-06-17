@@ -120,11 +120,12 @@ var createTimelineSlice = (set, get) => ({
     const currentTime = clip ? Math.max(clip.startTime, Math.min(state.currentTime, clip.startTime + clip.duration)) : state.currentTime;
     return { clips: newClips, duration, currentTime };
   }),
-  splitClipAt: (id, time) => set((state) => {
+  splitClipAt: (id, time) => {
+    const state = get();
     const clip = state.clips.find((c) => c.id === id);
-    if (!clip) return {};
+    if (!clip) return null;
     const localTime = time - clip.startTime;
-    if (localTime <= 0 || localTime >= clip.duration) return {};
+    if (localTime <= 0 || localTime >= clip.duration) return null;
     const firstHalf = __spreadProps(__spreadValues({}, clip), {
       duration: localTime,
       trimOut: clip.trimIn + localTime
@@ -135,10 +136,11 @@ var createTimelineSlice = (set, get) => ({
       duration: clip.duration - localTime,
       trimIn: clip.trimIn + localTime
     });
-    return {
-      clips: state.clips.map((c) => c.id === id ? firstHalf : c).concat(secondHalf)
-    };
-  }),
+    set((state2) => ({
+      clips: state2.clips.map((c) => c.id === id ? firstHalf : c).concat(secondHalf)
+    }));
+    return secondHalf.id;
+  },
   setCurrentTime: (time) => set((state) => ({ currentTime: Math.max(0, Math.min(time, state.duration)) })),
   setZoom: (zoom) => set(() => ({ zoom: Math.max(20, Math.min(300, zoom)) })),
   setSelectedClip: (id) => set(() => ({ selectedClipId: id })),
@@ -379,8 +381,47 @@ var createFreezeSlice = (set) => ({
   clearFreezes: () => set(() => ({ freezes: [] }))
 });
 
+// store/slices/transitionSlice.ts
+var import_nanoid4 = require("nanoid");
+var createTransitionSlice = (set, get) => ({
+  transitions: [],
+  addTransition: (clipAId, clipBId, duration = 0.3) => {
+    const state = get();
+    const transitions = state.transitions;
+    const exists = transitions.some(
+      (t) => t.clipAId === clipAId && t.clipBId === clipBId
+    );
+    if (exists) return null;
+    const id = (0, import_nanoid4.nanoid)();
+    set((state2) => {
+      var _a;
+      return {
+        transitions: [
+          ...(_a = state2.transitions) != null ? _a : [],
+          { id, type: "crossfade", duration, clipAId, clipBId }
+        ]
+      };
+    });
+    return id;
+  },
+  removeTransition: (id) => set((state) => {
+    var _a;
+    return {
+      transitions: ((_a = state.transitions) != null ? _a : []).filter((t) => t.id !== id)
+    };
+  }),
+  updateTransitionDuration: (id, duration) => set((state) => {
+    var _a;
+    return {
+      transitions: ((_a = state.transitions) != null ? _a : []).map(
+        (t) => t.id === id ? __spreadProps(__spreadValues({}, t), { duration: Math.max(0.05, Math.min(1, duration)) }) : t
+      )
+    };
+  })
+});
+
 // store/editorStore.ts
-var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
+var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
   set,
   get
 )), createExportSlice(set)), createOverlaysSlice(
@@ -392,7 +433,10 @@ var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(_
 )), createHistorySlice(
   set,
   get
-)), createFreezeSlice(set)));
+)), createFreezeSlice(set)), createTransitionSlice(
+  set,
+  get
+)));
 
 // hooks/useExport.ts
 var import_react = require("react");
@@ -908,7 +952,7 @@ function getOutputSize(clip, effects, resolution) {
   return { w: w & ~1, h: h & ~1 };
 }
 async function runExport(job) {
-  var _a, _b, _c;
+  var _a, _b, _c, _d, _e, _f;
   const { clips, settings, effectsMap, strokes, overlays, freezes, onProgress, signal } = job;
   const ffmpeg = await getFFmpeg();
   const renderer2 = new FrameRenderer();
@@ -974,6 +1018,22 @@ async function runExport(job) {
     const frameName = `frame_${String(globalIdx).padStart(6, "0")}.webp`;
     await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
   }
+  async function renderCrossfadeFrame(clipB, timelineTime, effectsB, speedB) {
+    const decoderB = getDecoderForFile(clipB.file);
+    const localTime = timelineTime - clipB.startTime;
+    const srcIdx = Math.min(Math.floor(localTime * fps * speedB), Math.ceil(clipB.duration * fps) - 1);
+    const sourceTime = clipB.trimIn + srcIdx / fps;
+    const frame = await decoderB.requestFrame(clipB.file, Math.min(sourceTime, clipB.trimOut - 1e-3));
+    const canvas = new OffscreenCanvas(outW, outH);
+    if (frame) {
+      const tmp = new OffscreenCanvas(1, 1);
+      renderer2.renderFrame(frame, tmp, effectsB);
+      frame.close();
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(tmp, 0, 0, outW, outH);
+    }
+    return canvas;
+  }
   for (const clip of clips) {
     const effects = (_b = effectsMap[clip.id]) != null ? _b : DEFAULT_EFFECTS;
     const speed = (_c = effects.speed) != null ? _c : 1;
@@ -991,6 +1051,17 @@ async function runExport(job) {
       }
     }
     const totalOutputFrames = outputFrameCount + extraFreezeFrames;
+    const transition = job.transitions.find((t) => t.clipAId === clip.id);
+    let clipB = null;
+    let effectsB = DEFAULT_EFFECTS;
+    let speedB = 1;
+    if (transition) {
+      clipB = (_d = clips.find((c) => c.id === transition.clipBId)) != null ? _d : null;
+      if (clipB) {
+        effectsB = (_e = effectsMap[clipB.id]) != null ? _e : DEFAULT_EFFECTS;
+        speedB = (_f = effectsB.speed) != null ? _f : 1;
+      }
+    }
     let normalFrames = 0;
     const BATCH_SIZE = 8;
     for (let batchStart = 0; batchStart < totalOutputFrames; batchStart += BATCH_SIZE) {
@@ -1004,11 +1075,23 @@ async function runExport(job) {
         const isFrozen = freezes.some(
           (f) => frameTime >= f.startTime && frameTime < f.endTime
         );
+        let isCrossfade = false;
+        let crossfadeAlpha = 0;
+        if (transition && clipB) {
+          const transitionStart = clip.startTime + clip.duration - transition.duration;
+          const transitionEnd = clip.startTime + clip.duration;
+          if (frameTime >= transitionStart && frameTime < transitionEnd) {
+            isCrossfade = true;
+            crossfadeAlpha = (frameTime - transitionStart) / transition.duration;
+          }
+        }
         frameInfos.push({
           outIdx: i,
           frameTime,
           isFrozen,
-          normalFramesAtStart: localNormalFrames
+          normalFramesAtStart: localNormalFrames,
+          isCrossfade,
+          crossfadeAlpha
         });
         if (!isFrozen) localNormalFrames++;
       }
@@ -1024,10 +1107,34 @@ async function runExport(job) {
           info.isFrozen
         )
       );
+      let crossfadePromises = null;
+      if (transition && clipB) {
+        crossfadePromises = frameInfos.map((info) => {
+          if (info.isCrossfade) {
+            return renderCrossfadeFrame(clipB, info.frameTime, effectsB, speedB);
+          }
+          return Promise.resolve(new OffscreenCanvas(1, 1));
+        });
+      }
       const canvases = await Promise.all(renderPromises);
+      let crossfadeCanvases = null;
+      if (crossfadePromises) {
+        crossfadeCanvases = await Promise.all(crossfadePromises);
+      }
       for (let j = 0; j < batchSize; j++) {
         const info = frameInfos[j];
-        const canvas = canvases[j];
+        let canvas = canvases[j];
+        if (info.isCrossfade && crossfadeCanvases) {
+          const canvasB = crossfadeCanvases[j];
+          const blended = new OffscreenCanvas(outW, outH);
+          const ctx = blended.getContext("2d");
+          ctx.globalAlpha = 1 - info.crossfadeAlpha;
+          ctx.drawImage(canvas, 0, 0);
+          ctx.globalAlpha = info.crossfadeAlpha;
+          ctx.drawImage(canvasB, 0, 0);
+          ctx.globalAlpha = 1;
+          canvas = blended;
+        }
         await compositeAndWrite(canvas, info.frameTime, globalFrameIdx);
         if (!info.isFrozen) normalFrames++;
         globalFrameIdx++;
@@ -1134,6 +1241,7 @@ function useExport() {
   const strokes = useEditorStore((s) => s.strokes);
   const overlays = useEditorStore((s) => s.overlays);
   const freezes = useEditorStore((s) => s.freezes);
+  const transitions = useEditorStore((s) => s.transitions);
   const setExportStatus = useEditorStore((s) => s.setExportStatus);
   const setExportProgress = useEditorStore((s) => s.setExportProgress);
   const setOutputUrl = useEditorStore((s) => s.setOutputUrl);
@@ -1159,6 +1267,7 @@ function useExport() {
         strokes,
         overlays,
         freezes,
+        transitions,
         signal: controller.signal,
         onProgress: (p) => {
           if (controller.signal.aborted) return;
@@ -2626,9 +2735,13 @@ function TrimPanel() {
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
   const trimClipStart = useEditorStore((s) => s.trimClipStart);
   const trimClipEnd = useEditorStore((s) => s.trimClipEnd);
+  const splitClipAt = useEditorStore((s) => s.splitClipAt);
   const setSelectedClip = useEditorStore((s) => s.setSelectedClip);
   const setTrimScrub = useEditorStore((s) => s.setTrimScrub);
   const captureHistory = useEditorStore((s) => s.captureHistory);
+  const transitions = useEditorStore((s) => s.transitions);
+  const addTransition = useEditorStore((s) => s.addTransition);
+  const removeTransition = useEditorStore((s) => s.removeTransition);
   const clip = (_b = (_a = clips.find((c) => c.id === selectedClipId)) != null ? _a : clips[0]) != null ? _b : null;
   (0, import_react10.useEffect)(() => {
     if (!selectedClipId && clips.length > 0) {
@@ -2926,12 +3039,69 @@ function TrimPanel() {
           /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(
             "div",
             {
-              className: "absolute right-3 pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded",
-              style: { top: RULER_H + 2, color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" },
+              className: "absolute right-3 flex items-center gap-2",
+              style: { top: RULER_H + 2 },
               children: [
-                formatTime(clip.trimOut - clip.trimIn),
-                " / ",
-                formatTime(clip.sourceDuration)
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("span", { className: "pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded", style: { color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" }, children: [
+                  formatTime(clip.trimOut - clip.trimIn),
+                  " / ",
+                  formatTime(clip.sourceDuration)
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                  "button",
+                  {
+                    onClick: () => {
+                      captureHistory();
+                      const srcTime = localSourceTime;
+                      const newClipId = splitClipAt(clip.id, clip.startTime + (srcTime - clip.trimIn));
+                      if (newClipId) setSelectedClip(newClipId);
+                    },
+                    className: "kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                    title: "Split clip at playhead position",
+                    children: "Split"
+                  }
+                ),
+                (() => {
+                  const clipStart = clip.startTime;
+                  const clipEnd = clip.startTime + clip.duration;
+                  const adjacent = clips.find((c) => {
+                    if (c.id === clip.id) return false;
+                    const cEnd = c.startTime + c.duration;
+                    return Math.abs(c.startTime - clipEnd) < 0.01 || Math.abs(cEnd - clipStart) < 0.01;
+                  });
+                  if (!adjacent) return null;
+                  const adjEnd = adjacent.startTime + adjacent.duration;
+                  const clipA = clipEnd <= adjEnd ? clip : adjacent;
+                  const clipB = clipA === clip ? adjacent : clip;
+                  const hasTransition = transitions.some(
+                    (t) => t.clipAId === clipA.id && t.clipBId === clipB.id
+                  );
+                  return hasTransition ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      onClick: () => {
+                        const t = transitions.find(
+                          (t2) => t2.clipAId === clipA.id && t2.clipBId === clipB.id
+                        );
+                        if (t) removeTransition(t.id);
+                      },
+                      className: "kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                      title: "Remove crossfade transition",
+                      children: "\u2715 Crossfade"
+                    }
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(
+                    "button",
+                    {
+                      onClick: () => {
+                        captureHistory();
+                        addTransition(clipA.id, clipB.id);
+                      },
+                      className: "kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded",
+                      title: "Add crossfade transition",
+                      children: "+ Crossfade"
+                    }
+                  );
+                })()
               ]
             }
           )

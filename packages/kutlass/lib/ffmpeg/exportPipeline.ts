@@ -10,6 +10,7 @@ import {
   StickerOverlay,
   VoiceOverlay,
   FreezeSegment,
+  Transition,
 } from "@/types/editor";
 import { Stroke } from "@/store/slices/drawingSlice";
 import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
@@ -24,6 +25,7 @@ export interface ExportJob {
   strokes: Stroke[];
   overlays: Overlay[];
   freezes: FreezeSegment[];
+  transitions: Transition[];
   onProgress: (progress: number) => void;
   signal?: AbortSignal;
 }
@@ -306,6 +308,29 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
     await ffmpeg.writeFile(frameName, new Uint8Array(await blob.arrayBuffer()));
   }
 
+  // ── Crossfade helper: render a frame from clipB at a given timeline time ──
+  async function renderCrossfadeFrame(
+    clipB: Clip,
+    timelineTime: number,
+    effectsB: EffectParams,
+    speedB: number
+  ): Promise<OffscreenCanvas> {
+    const decoderB = getDecoderForFile(clipB.file);
+    const localTime = timelineTime - clipB.startTime;
+    const srcIdx = Math.min(Math.floor(localTime * fps * speedB), Math.ceil(clipB.duration * fps) - 1);
+    const sourceTime = clipB.trimIn + srcIdx / fps;
+    const frame = await decoderB.requestFrame(clipB.file, Math.min(sourceTime, clipB.trimOut - 0.001));
+    const canvas = new OffscreenCanvas(outW, outH);
+    if (frame) {
+      const tmp = new OffscreenCanvas(1, 1);
+      renderer.renderFrame(frame, tmp, effectsB);
+      frame.close();
+      const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
+      ctx.drawImage(tmp, 0, 0, outW, outH);
+    }
+    return canvas;
+  }
+
   for (const clip of clips) {
     const effects = effectsMap[clip.id] ?? DEFAULT_EFFECTS;
     const speed = effects.speed ?? 1;
@@ -329,6 +354,19 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
     }
     const totalOutputFrames = outputFrameCount + extraFreezeFrames;
 
+    // Find a transition where this clip is clipA (the one that ends at the transition point)
+    const transition = job.transitions.find((t) => t.clipAId === clip.id);
+    let clipB: Clip | null = null;
+    let effectsB: EffectParams = DEFAULT_EFFECTS;
+    let speedB = 1;
+    if (transition) {
+      clipB = clips.find((c) => c.id === transition.clipBId) ?? null;
+      if (clipB) {
+        effectsB = effectsMap[clipB.id] ?? DEFAULT_EFFECTS;
+        speedB = effectsB.speed ?? 1;
+      }
+    }
+
     // normalFrames tracks how many non-frozen frames we've output.
     // It is used to calculate sourceIdx so the video doesn't jump ahead
     // during freeze — the source frame stays locked while we repeat it.
@@ -348,6 +386,8 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
         frameTime: number;
         isFrozen: boolean;
         normalFramesAtStart: number;
+        isCrossfade: boolean;
+        crossfadeAlpha: number;
       }> = [];
 
       let localNormalFrames = normalFrames;
@@ -356,11 +396,27 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
         const isFrozen = freezes.some(
           (f) => frameTime >= f.startTime && frameTime < f.endTime
         );
+
+        // Check if this frame is in the crossfade zone
+        let isCrossfade = false;
+        let crossfadeAlpha = 0;
+        if (transition && clipB) {
+          const transitionStart = clip.startTime + clip.duration - transition.duration;
+          const transitionEnd = clip.startTime + clip.duration;
+          if (frameTime >= transitionStart && frameTime < transitionEnd) {
+            isCrossfade = true;
+            // alpha goes from 0 to 1 over the transition duration
+            crossfadeAlpha = (frameTime - transitionStart) / transition.duration;
+          }
+        }
+
         frameInfos.push({
           outIdx: i,
           frameTime,
           isFrozen,
           normalFramesAtStart: localNormalFrames,
+          isCrossfade,
+          crossfadeAlpha,
         });
         if (!isFrozen) localNormalFrames++;
       }
@@ -379,12 +435,43 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
         )
       );
 
-      const canvases = await Promise.all(renderPromises);
+      // If there's a crossfade, also render frames from clipB for the transition zone
+      let crossfadePromises: Promise<OffscreenCanvas>[] | null = null;
+      if (transition && clipB) {
+        crossfadePromises = frameInfos.map((info) => {
+          if (info.isCrossfade) {
+            return renderCrossfadeFrame(clipB, info.frameTime, effectsB, speedB);
+          }
+          // Return a dummy canvas for non-crossfade frames (won't be used)
+          return Promise.resolve(new OffscreenCanvas(1, 1));
+        });
+      }
 
-      // Third pass: composite overlays and write to FS sequentially
+      const canvases = await Promise.all(renderPromises);
+      let crossfadeCanvases: OffscreenCanvas[] | null = null;
+      if (crossfadePromises) {
+        crossfadeCanvases = await Promise.all(crossfadePromises);
+      }
+
+      // Third pass: composite overlays, apply crossfade, and write to FS sequentially
       for (let j = 0; j < batchSize; j++) {
         const info = frameInfos[j];
-        const canvas = canvases[j];
+        let canvas = canvases[j];
+
+        // Apply crossfade: blend clipA canvas with clipB canvas
+        if (info.isCrossfade && crossfadeCanvases) {
+          const canvasB = crossfadeCanvases[j];
+          const blended = new OffscreenCanvas(outW, outH);
+          const ctx = blended.getContext("2d") as OffscreenCanvasRenderingContext2D;
+          // Draw clipA (fading out)
+          ctx.globalAlpha = 1 - info.crossfadeAlpha;
+          ctx.drawImage(canvas, 0, 0);
+          // Draw clipB (fading in)
+          ctx.globalAlpha = info.crossfadeAlpha;
+          ctx.drawImage(canvasB, 0, 0);
+          ctx.globalAlpha = 1;
+          canvas = blended;
+        }
 
         await compositeAndWrite(canvas, info.frameTime, globalFrameIdx);
 

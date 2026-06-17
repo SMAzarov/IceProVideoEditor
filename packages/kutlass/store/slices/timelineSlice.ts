@@ -17,7 +17,7 @@ export interface TimelineActions {
   moveClip: (id: string, startTime: number) => void;
   trimClipStart: (id: string, newTrimIn: number, newStartTime: number, newDuration: number) => void;
   trimClipEnd: (id: string, newTrimOut: number, newDuration: number) => void;
-  splitClipAt: (id: string, time: number) => void;
+  splitClipAt: (id: string, time: number) => string | null;
   setCurrentTime: (time: number) => void;
   setZoom: (zoom: number) => void;
   setSelectedClip: (id: string | null) => void;
@@ -100,30 +100,31 @@ export const createTimelineSlice = (
       return { clips: newClips, duration, currentTime };
     }),
 
-  splitClipAt: (id, time) =>
-    set((state) => {
-      const clip = state.clips.find((c) => c.id === id);
-      if (!clip) return {};
-      const localTime = time - clip.startTime;
-      if (localTime <= 0 || localTime >= clip.duration) return {};
+  splitClipAt: (id, time) => {
+    const state = get();
+    const clip = state.clips.find((c) => c.id === id);
+    if (!clip) return null;
+    const localTime = time - clip.startTime;
+    if (localTime <= 0 || localTime >= clip.duration) return null;
 
-      const firstHalf: Clip = {
-        ...clip,
-        duration: localTime,
-        trimOut: clip.trimIn + localTime,
-      };
-      const secondHalf: Clip = {
-        ...clip,
-        id: nanoid(),
-        startTime: time,
-        duration: clip.duration - localTime,
-        trimIn: clip.trimIn + localTime,
-      };
+    const firstHalf: Clip = {
+      ...clip,
+      duration: localTime,
+      trimOut: clip.trimIn + localTime,
+    };
+    const secondHalf: Clip = {
+      ...clip,
+      id: nanoid(),
+      startTime: time,
+      duration: clip.duration - localTime,
+      trimIn: clip.trimIn + localTime,
+    };
 
-      return {
-        clips: state.clips.map((c) => (c.id === id ? firstHalf : c)).concat(secondHalf),
-      };
-    }),
+    set((state) => ({
+      clips: state.clips.map((c) => (c.id === id ? firstHalf : c)).concat(secondHalf),
+    }));
+    return secondHalf.id;
+  },
 
   setCurrentTime: (time) =>
     set((state) => ({ currentTime: Math.max(0, Math.min(time, state.duration)) })),

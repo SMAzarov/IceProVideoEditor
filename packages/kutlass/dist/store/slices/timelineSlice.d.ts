@@ -14,7 +14,7 @@ export interface TimelineActions {
     moveClip: (id: string, startTime: number) => void;
     trimClipStart: (id: string, newTrimIn: number, newStartTime: number, newDuration: number) => void;
     trimClipEnd: (id: string, newTrimOut: number, newDuration: number) => void;
-    splitClipAt: (id: string, time: number) => void;
+    splitClipAt: (id: string, time: number) => string | null;
     setCurrentTime: (time: number) => void;
     setZoom: (zoom: number) => void;
     setSelectedClip: (id: string | null) => void;

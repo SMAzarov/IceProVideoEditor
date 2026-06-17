@@ -15,6 +15,7 @@ export function useExport() {
   const strokes = useEditorStore((s) => s.strokes);
   const overlays = useEditorStore((s) => s.overlays);
   const freezes = useEditorStore((s) => s.freezes);
+  const transitions = useEditorStore((s) => s.transitions);
   const setExportStatus = useEditorStore((s) => s.setExportStatus);
   const setExportProgress = useEditorStore((s) => s.setExportProgress);
   const setOutputUrl = useEditorStore((s) => s.setOutputUrl);
@@ -47,6 +48,7 @@ export function useExport() {
         strokes,
         overlays,
         freezes,
+        transitions,
         signal: controller.signal,
         onProgress: (p) => {
           if (controller.signal.aborted) return;

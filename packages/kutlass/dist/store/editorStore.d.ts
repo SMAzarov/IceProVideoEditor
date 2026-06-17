@@ -6,6 +6,7 @@ import { OverlaysState, OverlaysActions } from "./slices/overlaysSlice";
 import { DrawingState, DrawingActions } from "./slices/drawingSlice";
 import { HistoryState, HistoryActions } from "./slices/historySlice";
 import { FreezeState, FreezeActions } from "./slices/freezeSlice";
-export type EditorStore = TimelineState & TimelineActions & PlaybackState & PlaybackActions & EffectsState & EffectsActions & ExportState & ExportActions & OverlaysState & OverlaysActions & DrawingState & DrawingActions & HistoryState & HistoryActions & FreezeState & FreezeActions;
+import { TransitionState, TransitionActions } from "./slices/transitionSlice";
+export type EditorStore = TimelineState & TimelineActions & PlaybackState & PlaybackActions & EffectsState & EffectsActions & ExportState & ExportActions & OverlaysState & OverlaysActions & DrawingState & DrawingActions & HistoryState & HistoryActions & FreezeState & FreezeActions & TransitionState & TransitionActions;
 export declare const useEditorStore: import("zustand").UseBoundStore<import("zustand").StoreApi<EditorStore>>;
 //# sourceMappingURL=editorStore.d.ts.map

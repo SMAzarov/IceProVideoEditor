@@ -80,4 +80,12 @@ export interface FreezeSegment {
     startTime: number;
     endTime: number;
 }
+/** A transition effect between two adjacent clips */
+export interface Transition {
+    id: string;
+    type: "crossfade";
+    duration: number;
+    clipAId: string;
+    clipBId: string;
+}
 //# sourceMappingURL=editor.d.ts.map

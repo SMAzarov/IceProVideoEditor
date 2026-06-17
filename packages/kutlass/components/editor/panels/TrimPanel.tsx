@@ -39,9 +39,13 @@ export function TrimPanel() {
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
   const trimClipStart = useEditorStore((s) => s.trimClipStart);
   const trimClipEnd = useEditorStore((s) => s.trimClipEnd);
+  const splitClipAt = useEditorStore((s) => s.splitClipAt);
   const setSelectedClip = useEditorStore((s) => s.setSelectedClip);
   const setTrimScrub = useEditorStore((s) => s.setTrimScrub);
   const captureHistory = useEditorStore((s) => s.captureHistory);
+  const transitions = useEditorStore((s) => s.transitions);
+  const addTransition = useEditorStore((s) => s.addTransition);
+  const removeTransition = useEditorStore((s) => s.removeTransition);
 
   const clip = clips.find((c) => c.id === selectedClipId) ?? clips[0] ?? null;
 
@@ -390,12 +394,69 @@ export function TrimPanel() {
             />
           </div>
 
-          {/* Duration badge */}
+          {/* Duration badge + Split button + Crossfade */}
           <div
-            className="absolute right-3 pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded"
-            style={{ top: RULER_H + 2, color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" }}
+            className="absolute right-3 flex items-center gap-2"
+            style={{ top: RULER_H + 2 }}
           >
-            {formatTime(clip.trimOut - clip.trimIn)} / {formatTime(clip.sourceDuration)}
+            <span className="pointer-events-none text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded" style={{ color: "var(--kt-text-tertiary)", background: "var(--kt-badge-bg)" }}>
+              {formatTime(clip.trimOut - clip.trimIn)} / {formatTime(clip.sourceDuration)}
+            </span>
+            <button
+              onClick={() => {
+                captureHistory();
+                const srcTime = localSourceTime;
+                const newClipId = splitClipAt(clip.id, clip.startTime + (srcTime - clip.trimIn));
+                if (newClipId) setSelectedClip(newClipId);
+              }}
+              className="kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded"
+              title="Split clip at playhead position"
+            >
+              Split
+            </button>
+            {(() => {
+              // Find adjacent clip: either next (starts where this ends) or prev (ends where this starts)
+              const clipStart = clip.startTime;
+              const clipEnd = clip.startTime + clip.duration;
+              const adjacent = clips.find((c) => {
+                if (c.id === clip.id) return false;
+                const cEnd = c.startTime + c.duration;
+                return Math.abs(c.startTime - clipEnd) < 0.01 || Math.abs(cEnd - clipStart) < 0.01;
+              });
+              if (!adjacent) return null;
+              // Determine which is clipA (the one that ends first) and clipB (the one that starts after)
+              const adjEnd = adjacent.startTime + adjacent.duration;
+              const clipA = clipEnd <= adjEnd ? clip : adjacent;
+              const clipB = clipA === clip ? adjacent : clip;
+              const hasTransition = transitions.some(
+                (t) => t.clipAId === clipA.id && t.clipBId === clipB.id
+              );
+              return hasTransition ? (
+                <button
+                  onClick={() => {
+                    const t = transitions.find(
+                      (t) => t.clipAId === clipA.id && t.clipBId === clipB.id
+                    );
+                    if (t) removeTransition(t.id);
+                  }}
+                  className="kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                  title="Remove crossfade transition"
+                >
+                  ✕ Crossfade
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    captureHistory();
+                    addTransition(clipA.id, clipB.id);
+                  }}
+                  className="kt-btn-ghost text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                  title="Add crossfade transition"
+                >
+                  + Crossfade
+                </button>
+              );
+            })()}
           </div>
         </>
       )}

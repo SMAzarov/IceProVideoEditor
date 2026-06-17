@@ -115,3 +115,12 @@ export interface FreezeSegment {
   startTime: number; // timeline time when freeze begins
   endTime: number;   // timeline time when freeze ends
 }
+
+/** A transition effect between two adjacent clips */
+export interface Transition {
+  id: string;
+  type: "crossfade";
+  duration: number; // seconds (0.1–1.0)
+  clipAId: string;  // first clip (the one that ends at the transition point)
+  clipBId: string;  // second clip (the one that starts at the transition point)
+}

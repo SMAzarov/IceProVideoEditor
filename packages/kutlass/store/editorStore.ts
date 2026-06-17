@@ -7,6 +7,7 @@ import { createOverlaysSlice, OverlaysState, OverlaysActions } from "./slices/ov
 import { createDrawingSlice, DrawingState, DrawingActions } from "./slices/drawingSlice";
 import { createHistorySlice, HistoryState, HistoryActions } from "./slices/historySlice";
 import { createFreezeSlice, FreezeState, FreezeActions } from "./slices/freezeSlice";
+import { createTransitionSlice, TransitionState, TransitionActions } from "./slices/transitionSlice";
 
 export type EditorStore = TimelineState &
   TimelineActions &
@@ -23,7 +24,9 @@ export type EditorStore = TimelineState &
   HistoryState &
   HistoryActions &
   FreezeState &
-  FreezeActions;
+  FreezeActions &
+  TransitionState &
+  TransitionActions;
 
 export const useEditorStore = create<EditorStore>()((set, get) => ({
   ...createTimelineSlice(set as Parameters<typeof createTimelineSlice>[0], get),
@@ -46,4 +49,8 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     get as Parameters<typeof createHistorySlice>[1]
   ),
   ...createFreezeSlice(set as Parameters<typeof createFreezeSlice>[0]),
+  ...createTransitionSlice(
+    set as unknown as Parameters<typeof createTransitionSlice>[0],
+    get as unknown as Parameters<typeof createTransitionSlice>[1]
+  ),
 }));
