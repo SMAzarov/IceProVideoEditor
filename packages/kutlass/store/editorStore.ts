@@ -9,6 +9,7 @@ import { createHistorySlice, HistoryState, HistoryActions } from "./slices/histo
 import { createFreezeSlice, FreezeState, FreezeActions } from "./slices/freezeSlice";
 import { createTransitionSlice, TransitionState, TransitionActions } from "./slices/transitionSlice";
 import { createShapeSlice, ShapeState, ShapeActions } from "./slices/shapeSlice";
+import { createThemeSlice, ThemeState, ThemeActions } from "./slices/themeSlice";
 
 export type EditorStore = TimelineState &
   TimelineActions &
@@ -29,7 +30,9 @@ export type EditorStore = TimelineState &
   TransitionState &
   TransitionActions &
   ShapeState &
-  ShapeActions;
+  ShapeActions &
+  ThemeState &
+  ThemeActions;
 
 export const useEditorStore = create<EditorStore>()((set, get) => ({
   ...createTimelineSlice(set as Parameters<typeof createTimelineSlice>[0], get),
@@ -60,4 +63,5 @@ export const useEditorStore = create<EditorStore>()((set, get) => ({
     set as unknown as Parameters<typeof createShapeSlice>[0],
     get as unknown as Parameters<typeof createShapeSlice>[1]
   ),
+  ...createThemeSlice(set as Parameters<typeof createThemeSlice>[0]),
 }));

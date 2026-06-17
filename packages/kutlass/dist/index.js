@@ -479,8 +479,42 @@ var createShapeSlice = (set, get) => ({
   setShapeDuration: (duration) => set(() => ({ shapeDuration: duration }))
 });
 
+// store/slices/themeSlice.ts
+var LS_KEY = "kt-theme";
+function getInitialTheme() {
+  if (typeof window === "undefined") return "dark";
+  const stored = localStorage.getItem(LS_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return "dark";
+}
+function applyTheme(theme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-kt-theme", theme);
+  document.documentElement.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+  document.body.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+}
+var createThemeSlice = (set) => {
+  const initial = getInitialTheme();
+  return {
+    theme: initial,
+    setTheme: (theme) => {
+      set(() => ({ theme }));
+      localStorage.setItem(LS_KEY, theme);
+      applyTheme(theme);
+    },
+    toggleTheme: () => {
+      set((state) => {
+        const next = state.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(LS_KEY, next);
+        applyTheme(next);
+        return { theme: next };
+      });
+    }
+  };
+};
+
 // store/editorStore.ts
-var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
+var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
   set,
   get
 )), createExportSlice(set)), createOverlaysSlice(
@@ -498,7 +532,7 @@ var useEditorStore = (0, import_zustand.create)()((set, get) => __spreadValues(_
 )), createShapeSlice(
   set,
   get
-)));
+)), createThemeSlice(set)));
 
 // hooks/useExport.ts
 var import_react = require("react");
@@ -1515,7 +1549,15 @@ function useVideoImport() {
 
 // components/editor/TopBar.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
+var MENUS = [
+  { id: "file", label: "File" },
+  { id: "edit", label: "Edit" },
+  { id: "view", label: "View" },
+  { id: "help", label: "Help" }
+];
 function TopBar() {
+  const [openMenu, setOpenMenu] = (0, import_react3.useState)(null);
+  const menuRef = (0, import_react3.useRef)(null);
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
   const undo = useEditorStore((s) => s.undo);
@@ -1527,191 +1569,364 @@ function TopBar() {
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const playbackRate = useEditorStore((s) => s.playbackRate);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const theme = useEditorStore((s) => s.theme);
+  const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const { startExport } = useExport();
   const { replaceImport } = useVideoImport();
   const fileInputRef = (0, import_react3.useRef)(null);
   const isExporting = exportStatus === "preparing" || exportStatus === "encoding";
   const hasClips = clips.length > 0;
   const zoomPercent = Math.round(zoom / 80 * 100);
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center h-11 px-2 md:px-3 shrink-0 border-b", style: { borderColor: "var(--kt-border)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-0.5 md:gap-1", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: undo,
-          disabled: !canUndo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Undo (\u2318Z)",
-          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" }) })
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: redo,
-          disabled: !canRedo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Redo (\u2318\u21E7Z)",
-          children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" }) })
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mx-auto", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setZoom(zoom / 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "-"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
-        zoomPercent,
-        "%"
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setZoom(zoom * 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Slower ([)",
-          children: "\u2212"
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "span",
-        {
-          className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
-          style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
-          children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
-        }
-      ),
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Faster (])",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1.5 md:gap-2", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-        "input",
-        {
-          ref: fileInputRef,
-          type: "file",
-          accept: "video/*",
-          className: "hidden",
-          onChange: (e) => {
-            var _a;
-            const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
-            if (files.length > 0) replaceImport(files);
-            e.target.value = "";
+  (0, import_react3.useEffect)(() => {
+    if (!openMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenu]);
+  const toggleMenu = (0, import_react3.useCallback)((id) => {
+    setOpenMenu((prev) => prev === id ? null : id);
+  }, []);
+  const handleAction = (0, import_react3.useCallback)(
+    (action) => {
+      var _a;
+      setOpenMenu(null);
+      switch (action) {
+        case "import":
+          (_a = fileInputRef.current) == null ? void 0 : _a.click();
+          break;
+        case "export":
+          if (!isExporting && hasClips) {
+            setPlaying(false);
+            startExport();
           }
-        }
-      ),
-      hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
-          "button",
+          break;
+        case "undo":
+          undo();
+          break;
+        case "redo":
+          redo();
+          break;
+        case "toggle-theme":
+          toggleTheme();
+          break;
+        case "zoom-in":
+          setZoom(zoom * 1.25);
+          break;
+        case "zoom-out":
+          setZoom(zoom / 1.25);
+          break;
+        case "zoom-reset":
+          setZoom(80);
+          break;
+      }
+    },
+    [undo, redo, toggleTheme, setZoom, zoom, isExporting, hasClips, setPlaying]
+  );
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "div",
+    {
+      ref: menuRef,
+      className: "flex items-center h-11 px-1 md:px-2 shrink-0 border-b select-none",
+      style: { borderColor: "var(--kt-border)" },
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          "input",
           {
-            onClick: () => {
+            ref: fileInputRef,
+            type: "file",
+            accept: "video/*",
+            className: "hidden",
+            onChange: (e) => {
               var _a;
-              return (_a = fileInputRef.current) == null ? void 0 : _a.click();
-            },
-            className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
-            title: "Import new video",
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "hidden md:inline", children: "Import Video" }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "md:hidden", children: "Import" })
-            ]
+              const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
+              if (files.length > 0) replaceImport(files);
+              e.target.value = "";
+            }
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          "button",
-          {
-            disabled: isExporting,
-            onClick: () => {
-              setPlaying(false);
-              startExport();
-            },
-            className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-            children: "Done"
-          }
-        )
-      ] })
-    ] })
-  ] });
+        MENUS.map((menu) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "relative", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => toggleMenu(menu.id),
+              className: "kt-btn-ghost px-3 h-8 rounded-lg text-sm font-medium transition-colors",
+              style: {
+                color: openMenu === menu.id ? "var(--kt-text-primary)" : "var(--kt-text-tertiary)",
+                background: openMenu === menu.id ? "var(--kt-bg-subtle-hover)" : "transparent"
+              },
+              children: menu.label
+            }
+          ),
+          openMenu === menu.id && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "div",
+            {
+              className: "absolute top-full left-0 mt-0.5 w-48 rounded-lg shadow-xl border z-50 py-1",
+              style: {
+                background: "var(--kt-bg-panel)",
+                borderColor: "var(--kt-border-strong)"
+              },
+              children: [
+                menu.id === "file" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Import Video", shortcut: "\u2318I", onClick: () => handleAction("import") }),
+                  hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    MenuItem,
+                    {
+                      label: "Export",
+                      shortcut: "\u2318E",
+                      onClick: () => handleAction("export"),
+                      disabled: isExporting
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Close", shortcut: "\u2318W", onClick: () => handleAction("close") })
+                ] }),
+                menu.id === "edit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Undo", shortcut: "\u2318Z", onClick: () => handleAction("undo"), disabled: !canUndo }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Redo", shortcut: "\u2318\u21E7Z", onClick: () => handleAction("redo"), disabled: !canRedo })
+                ] }),
+                menu.id === "view" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Zoom In", shortcut: "\u2318+", onClick: () => handleAction("zoom-in") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Zoom Out", shortcut: "\u2318-", onClick: () => handleAction("zoom-out") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Reset Zoom", shortcut: "\u23180", onClick: () => handleAction("zoom-reset") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                    MenuItem,
+                    {
+                      label: theme === "dark" ? "Light Theme" : "Dark Theme",
+                      shortcut: "\u2318T",
+                      onClick: () => handleAction("toggle-theme"),
+                      icon: theme === "dark" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("circle", { cx: "12", cy: "12", r: "5" }),
+                        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" })
+                      ] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", { strokeLinecap: "round", d: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" }) })
+                    }
+                  )
+                ] }),
+                menu.id === "help" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "Keyboard Shortcuts", shortcut: "?", onClick: () => handleAction("shortcuts") }),
+                  /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuItem, { label: "About IceProVideoEditor", onClick: () => handleAction("about") })
+                ] })
+              ]
+            }
+          )
+        ] }, menu.id)),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex-1" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "hidden md:flex items-center gap-1 mr-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setZoom(zoom / 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "-"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
+            zoomPercent,
+            "%"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setZoom(zoom * 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "flex items-center gap-1 mr-2", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Slower ([)",
+              children: "\u2212"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "span",
+            {
+              className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
+              style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
+              children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Faster (])",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "flex items-center gap-1.5 md:gap-2", children: hasClips && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+            "button",
+            {
+              onClick: () => {
+                var _a;
+                return (_a = fileInputRef.current) == null ? void 0 : _a.click();
+              },
+              className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
+              title: "Import new video",
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "hidden md:inline", children: "Import Video" }),
+                /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "md:hidden", children: "Import" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+            "button",
+            {
+              disabled: isExporting,
+              onClick: () => {
+                setPlaying(false);
+                startExport();
+              },
+              className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+              children: "Done"
+            }
+          )
+        ] }) })
+      ]
+    }
+  );
+}
+function MenuItem({
+  label,
+  shortcut,
+  icon,
+  disabled,
+  onClick
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+    "button",
+    {
+      onClick,
+      disabled,
+      className: "flex items-center w-full px-3 py-2 text-sm transition-colors",
+      style: {
+        color: disabled ? "var(--kt-text-faint)" : "var(--kt-text-secondary)",
+        cursor: disabled ? "not-allowed" : "pointer"
+      },
+      onMouseEnter: (e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = "var(--kt-bg-subtle-hover)";
+          e.currentTarget.style.color = "var(--kt-text-primary)";
+        }
+      },
+      onMouseLeave: (e) => {
+        e.currentTarget.style.background = "transparent";
+        if (!disabled) e.currentTarget.style.color = "var(--kt-text-secondary)";
+      },
+      children: [
+        icon && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "mr-2", children: icon }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "flex-1 text-left", children: label }),
+        shortcut && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ml-4 text-[10px] tabular-nums", style: { color: "var(--kt-text-muted)" }, children: shortcut })
+      ]
+    }
+  );
 }
 
 // components/editor/Sidebar.tsx
 var import_framer_motion = require("framer-motion");
 var import_jsx_runtime2 = require("react/jsx-runtime");
+var C = {
+  trim: "#3b82f6",
+  // blue
+  crop: "#22c55e",
+  // green
+  finetune: "#a855f7",
+  // purple
+  filter: "#f43f5e",
+  // rose
+  annotate: "#f97316",
+  // orange
+  sticker: "#ec4899",
+  // pink
+  resize: "#eab308",
+  // yellow
+  voice: "#06b6d4"
+  // cyan
+};
 var TOOLS = [
   {
     id: "trim",
     label: "Trim",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "3", y: "5", width: "18", height: "14", rx: "1" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M3 9h18M3 15h18M9 5v14M15 5v14" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "2", y: "4", width: "20", height: "16", rx: "2", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M8 4v16M16 4v16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M2 9h20M2 15h20", stroke: c, opacity: "0.35" })
     ] })
   },
   {
     id: "crop",
     label: "Crop",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
+    ] })
   },
   {
     id: "finetune",
-    label: "Finetune",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "6", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "15", cy: "12", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "18", r: "2", fill: "currentColor", stroke: "none" })
+    label: "Adjust",
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "8", cy: "6", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "16", cy: "12", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "8", cy: "18", r: "2", fill: c, stroke: "none", opacity: "0.7" })
     ] })
   },
   {
     id: "filter",
     label: "Filter",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
     ] })
   },
   {
     id: "annotate",
     label: "Annotate",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "16", cy: "8", r: "1.5", fill: c, stroke: "none", opacity: "0.55" })
+    ] })
   },
   {
     id: "sticker",
     label: "Sticker",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M9 9h.01M15 9h.01M9 14s1 2 3 2 3-2 3-2" })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "3", y: "3", width: "18", height: "18", rx: "4", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "9", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("circle", { cx: "15", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 15s1.5 2 4 2 4-2 4-2", stroke: c })
     ] })
   },
   {
     id: "resize",
     label: "Resize",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 12h8M12 8v8", stroke: c, opacity: "0.45" })
+    ] })
   },
   {
     id: "voice",
     label: "Voice",
-    icon: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" }) })
+    icon: (c) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", d: "M5 11a7 7 0 0014 0", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M12 19v3M9 22h6", stroke: c })
+    ] })
   }
 ];
 function Sidebar({ activeTool, onToolChange, horizontal }) {
@@ -1723,19 +1938,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
         {
           onClick: () => onToolChange(tool.id),
           className: "relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 kt-tool-btn",
-          style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+          style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
           children: [
             isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
               import_framer_motion.motion.div,
               {
                 layoutId: "sidebar-active-h",
                 className: "absolute inset-0 rounded-lg",
-                style: { background: "var(--kt-bg-subtle-hover)" },
+                style: { background: "var(--kt-accent-subtle-bg)" },
                 transition: { type: "spring", stiffness: 400, damping: 35 }
               }
             ),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[9px] font-medium leading-none", children: tool.label })
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
           ]
         },
         tool.id
@@ -1749,19 +1964,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
       {
         onClick: () => onToolChange(tool.id),
         className: "relative flex flex-col items-center gap-1 py-2.5 mx-1.5 rounded-xl transition-colors kt-tool-btn",
-        style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+        style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
         children: [
           isActive && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             import_framer_motion.motion.div,
             {
               layoutId: "sidebar-active",
               className: "absolute inset-0 rounded-xl",
-              style: { background: "var(--kt-bg-subtle-hover)" },
+              style: { background: "var(--kt-accent-subtle-bg)" },
               transition: { type: "spring", stiffness: 400, damping: 35 }
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-[10px] font-medium leading-none", children: tool.label })
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
         ]
       },
       tool.id
@@ -5034,17 +5249,17 @@ var import_jsx_runtime18 = require("react/jsx-runtime");
 function Kutlass({
   className,
   style,
-  theme = "dark",
   accent,
   colors,
   exportSettings,
   ffmpegPaths,
   onExportComplete
 }) {
+  const storeTheme = useEditorStore((s) => s.theme);
   const colorOverrides = (0, import_react16.useMemo)(() => {
     const vars = {};
     if (accent) {
-      const derived = deriveAccentVars(accent, theme === "dark");
+      const derived = deriveAccentVars(accent, storeTheme === "dark");
       for (const [k, v] of Object.entries(derived)) vars[`--kt-${k}`] = v;
     }
     if (colors) {
@@ -5053,7 +5268,7 @@ function Kutlass({
       }
     }
     return vars;
-  }, [accent, colors, theme]);
+  }, [accent, colors, storeTheme]);
   (0, import_react16.useEffect)(() => {
     if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
   }, [ffmpegPaths]);
@@ -5073,7 +5288,6 @@ function Kutlass({
   return /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(
     "div",
     {
-      "data-kt-theme": theme,
       className: `kutlass-editor ${className != null ? className : ""}`,
       style: __spreadValues(__spreadValues({ width: "100%", height: "100%" }, colorOverrides), style),
       children: /* @__PURE__ */ (0, import_jsx_runtime18.jsx)(Editor, {})

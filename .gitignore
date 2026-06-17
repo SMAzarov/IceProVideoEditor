@@ -2,3 +2,4 @@
 /apps/demo/.next/
 /apps/demo/node_modules/
 /.nx/
+/.idea/

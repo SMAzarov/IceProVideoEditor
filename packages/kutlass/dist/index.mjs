@@ -21,14 +21,14 @@ var __spreadValues = (a, b) => {
 var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 
 // src/Kutlass.tsx
-import { useEffect as useEffect9, useMemo } from "react";
+import { useEffect as useEffect10, useMemo } from "react";
 
 // components/editor/Editor.tsx
-import { useState as useState5, useCallback as useCallback11 } from "react";
+import { useState as useState6, useCallback as useCallback12 } from "react";
 import { AnimatePresence, motion as motion3 } from "framer-motion";
 
 // components/editor/TopBar.tsx
-import { useRef } from "react";
+import { useRef, useState, useCallback as useCallback3, useEffect } from "react";
 
 // store/editorStore.ts
 import { create } from "zustand";
@@ -445,8 +445,42 @@ var createShapeSlice = (set, get) => ({
   setShapeDuration: (duration) => set(() => ({ shapeDuration: duration }))
 });
 
+// store/slices/themeSlice.ts
+var LS_KEY = "kt-theme";
+function getInitialTheme() {
+  if (typeof window === "undefined") return "dark";
+  const stored = localStorage.getItem(LS_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return "dark";
+}
+function applyTheme(theme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.setAttribute("data-kt-theme", theme);
+  document.documentElement.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+  document.body.style.background = theme === "dark" ? "#1c1c1c" : "#f0f2f5";
+}
+var createThemeSlice = (set) => {
+  const initial = getInitialTheme();
+  return {
+    theme: initial,
+    setTheme: (theme) => {
+      set(() => ({ theme }));
+      localStorage.setItem(LS_KEY, theme);
+      applyTheme(theme);
+    },
+    toggleTheme: () => {
+      set((state) => {
+        const next = state.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(LS_KEY, next);
+        applyTheme(next);
+        return { theme: next };
+      });
+    }
+  };
+};
+
 // store/editorStore.ts
-var useEditorStore = create()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
+var useEditorStore = create()((set, get) => __spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues(__spreadValues({}, createTimelineSlice(set, get)), createPlaybackSlice(set)), createEffectsSlice(
   set,
   get
 )), createExportSlice(set)), createOverlaysSlice(
@@ -464,7 +498,7 @@ var useEditorStore = create()((set, get) => __spreadValues(__spreadValues(__spre
 )), createShapeSlice(
   set,
   get
-)));
+)), createThemeSlice(set)));
 
 // hooks/useExport.ts
 import { useCallback } from "react";
@@ -1481,7 +1515,15 @@ function useVideoImport() {
 
 // components/editor/TopBar.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var MENUS = [
+  { id: "file", label: "File" },
+  { id: "edit", label: "Edit" },
+  { id: "view", label: "View" },
+  { id: "help", label: "Help" }
+];
 function TopBar() {
+  const [openMenu, setOpenMenu] = useState(null);
+  const menuRef = useRef(null);
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
   const undo = useEditorStore((s) => s.undo);
@@ -1493,191 +1535,364 @@ function TopBar() {
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const playbackRate = useEditorStore((s) => s.playbackRate);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
+  const theme = useEditorStore((s) => s.theme);
+  const toggleTheme = useEditorStore((s) => s.toggleTheme);
   const { startExport } = useExport();
   const { replaceImport } = useVideoImport();
   const fileInputRef = useRef(null);
   const isExporting = exportStatus === "preparing" || exportStatus === "encoding";
   const hasClips = clips.length > 0;
   const zoomPercent = Math.round(zoom / 80 * 100);
-  return /* @__PURE__ */ jsxs("div", { className: "flex items-center h-11 px-2 md:px-3 shrink-0 border-b", style: { borderColor: "var(--kt-border)" }, children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-0.5 md:gap-1", children: [
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: undo,
-          disabled: !canUndo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Undo (\u2318Z)",
-          children: /* @__PURE__ */ jsx("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" }) })
-        }
-      ),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: redo,
-          disabled: !canRedo,
-          className: "kt-btn-ghost w-8 h-8 flex items-center justify-center rounded-lg transition-colors",
-          title: "Redo (\u2318\u21E7Z)",
-          children: /* @__PURE__ */ jsx("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" }) })
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "hidden md:flex items-center gap-1 mx-auto", children: [
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: () => setZoom(zoom / 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "-"
-        }
-      ),
-      /* @__PURE__ */ jsxs("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
-        zoomPercent,
-        "%"
-      ] }),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: () => setZoom(zoom * 1.25),
-          className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1 mr-2", children: [
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Slower ([)",
-          children: "\u2212"
-        }
-      ),
-      /* @__PURE__ */ jsx(
-        "span",
-        {
-          className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
-          style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
-          children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
-        }
-      ),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
-          className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
-          title: "Faster (])",
-          children: "+"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1.5 md:gap-2", children: [
-      /* @__PURE__ */ jsx(
-        "input",
-        {
-          ref: fileInputRef,
-          type: "file",
-          accept: "video/*",
-          className: "hidden",
-          onChange: (e) => {
-            var _a;
-            const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
-            if (files.length > 0) replaceImport(files);
-            e.target.value = "";
+  useEffect(() => {
+    if (!openMenu) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [openMenu]);
+  const toggleMenu = useCallback3((id) => {
+    setOpenMenu((prev) => prev === id ? null : id);
+  }, []);
+  const handleAction = useCallback3(
+    (action) => {
+      var _a;
+      setOpenMenu(null);
+      switch (action) {
+        case "import":
+          (_a = fileInputRef.current) == null ? void 0 : _a.click();
+          break;
+        case "export":
+          if (!isExporting && hasClips) {
+            setPlaying(false);
+            startExport();
           }
-        }
-      ),
-      hasClips && /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsxs(
-          "button",
+          break;
+        case "undo":
+          undo();
+          break;
+        case "redo":
+          redo();
+          break;
+        case "toggle-theme":
+          toggleTheme();
+          break;
+        case "zoom-in":
+          setZoom(zoom * 1.25);
+          break;
+        case "zoom-out":
+          setZoom(zoom / 1.25);
+          break;
+        case "zoom-reset":
+          setZoom(80);
+          break;
+      }
+    },
+    [undo, redo, toggleTheme, setZoom, zoom, isExporting, hasClips, setPlaying]
+  );
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      ref: menuRef,
+      className: "flex items-center h-11 px-1 md:px-2 shrink-0 border-b select-none",
+      style: { borderColor: "var(--kt-border)" },
+      children: [
+        /* @__PURE__ */ jsx(
+          "input",
           {
-            onClick: () => {
+            ref: fileInputRef,
+            type: "file",
+            accept: "video/*",
+            className: "hidden",
+            onChange: (e) => {
               var _a;
-              return (_a = fileInputRef.current) == null ? void 0 : _a.click();
-            },
-            className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
-            title: "Import new video",
-            children: [
-              /* @__PURE__ */ jsx("span", { className: "hidden md:inline", children: "Import Video" }),
-              /* @__PURE__ */ jsx("span", { className: "md:hidden", children: "Import" })
-            ]
+              const files = Array.from((_a = e.target.files) != null ? _a : []).filter((f) => f.type.startsWith("video/"));
+              if (files.length > 0) replaceImport(files);
+              e.target.value = "";
+            }
           }
         ),
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            disabled: isExporting,
-            onClick: () => {
-              setPlaying(false);
-              startExport();
-            },
-            className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
-            children: "Done"
-          }
-        )
-      ] })
-    ] })
-  ] });
+        MENUS.map((menu) => /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: () => toggleMenu(menu.id),
+              className: "kt-btn-ghost px-3 h-8 rounded-lg text-sm font-medium transition-colors",
+              style: {
+                color: openMenu === menu.id ? "var(--kt-text-primary)" : "var(--kt-text-tertiary)",
+                background: openMenu === menu.id ? "var(--kt-bg-subtle-hover)" : "transparent"
+              },
+              children: menu.label
+            }
+          ),
+          openMenu === menu.id && /* @__PURE__ */ jsxs(
+            "div",
+            {
+              className: "absolute top-full left-0 mt-0.5 w-48 rounded-lg shadow-xl border z-50 py-1",
+              style: {
+                background: "var(--kt-bg-panel)",
+                borderColor: "var(--kt-border-strong)"
+              },
+              children: [
+                menu.id === "file" && /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Import Video", shortcut: "\u2318I", onClick: () => handleAction("import") }),
+                  hasClips && /* @__PURE__ */ jsx(
+                    MenuItem,
+                    {
+                      label: "Export",
+                      shortcut: "\u2318E",
+                      onClick: () => handleAction("export"),
+                      disabled: isExporting
+                    }
+                  ),
+                  /* @__PURE__ */ jsx("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Close", shortcut: "\u2318W", onClick: () => handleAction("close") })
+                ] }),
+                menu.id === "edit" && /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Undo", shortcut: "\u2318Z", onClick: () => handleAction("undo"), disabled: !canUndo }),
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Redo", shortcut: "\u2318\u21E7Z", onClick: () => handleAction("redo"), disabled: !canRedo })
+                ] }),
+                menu.id === "view" && /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Zoom In", shortcut: "\u2318+", onClick: () => handleAction("zoom-in") }),
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Zoom Out", shortcut: "\u2318-", onClick: () => handleAction("zoom-out") }),
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Reset Zoom", shortcut: "\u23180", onClick: () => handleAction("zoom-reset") }),
+                  /* @__PURE__ */ jsx("div", { className: "h-px my-1", style: { background: "var(--kt-border)" } }),
+                  /* @__PURE__ */ jsx(
+                    MenuItem,
+                    {
+                      label: theme === "dark" ? "Light Theme" : "Dark Theme",
+                      shortcut: "\u2318T",
+                      onClick: () => handleAction("toggle-theme"),
+                      icon: theme === "dark" ? /* @__PURE__ */ jsxs("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: [
+                        /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "5" }),
+                        /* @__PURE__ */ jsx("path", { strokeLinecap: "round", d: "M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" })
+                      ] }) : /* @__PURE__ */ jsx("svg", { className: "w-3.5 h-3.5", fill: "none", stroke: "currentColor", strokeWidth: 2, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", d: "M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" }) })
+                    }
+                  )
+                ] }),
+                menu.id === "help" && /* @__PURE__ */ jsxs(Fragment, { children: [
+                  /* @__PURE__ */ jsx(MenuItem, { label: "Keyboard Shortcuts", shortcut: "?", onClick: () => handleAction("shortcuts") }),
+                  /* @__PURE__ */ jsx(MenuItem, { label: "About IceProVideoEditor", onClick: () => handleAction("about") })
+                ] })
+              ]
+            }
+          )
+        ] }, menu.id)),
+        /* @__PURE__ */ jsx("div", { className: "flex-1" }),
+        /* @__PURE__ */ jsxs("div", { className: "hidden md:flex items-center gap-1 mr-2", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: () => setZoom(zoom / 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "-"
+            }
+          ),
+          /* @__PURE__ */ jsxs("span", { className: "text-xs font-medium w-10 text-center tabular-nums", style: { color: "var(--kt-text-secondary)" }, children: [
+            zoomPercent,
+            "%"
+          ] }),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: () => setZoom(zoom * 1.25),
+              className: "kt-btn-ghost w-7 h-7 flex items-center justify-center rounded-lg transition-colors text-base leading-none",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-1 mr-2", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.max(0, playbackRate - 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Slower ([)",
+              children: "\u2212"
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: "text-xs font-mono tabular-nums min-w-[2.5ch] text-center",
+              style: { color: playbackRate !== 1 ? "var(--kt-accent)" : "var(--kt-text-muted)" },
+              children: playbackRate === 0 ? "\u275A\u275A" : `${playbackRate}x`
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: () => setPlaybackRate(Math.min(2, playbackRate + 0.25)),
+              className: "kt-btn-ghost w-6 h-6 flex items-center justify-center rounded text-xs leading-none",
+              title: "Faster (])",
+              children: "+"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "flex items-center gap-1.5 md:gap-2", children: hasClips && /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsxs(
+            "button",
+            {
+              onClick: () => {
+                var _a;
+                return (_a = fileInputRef.current) == null ? void 0 : _a.click();
+              },
+              className: "kt-btn-import px-2 md:px-3 h-8 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-1.5",
+              title: "Import new video",
+              children: [
+                /* @__PURE__ */ jsx("span", { className: "hidden md:inline", children: "Import Video" }),
+                /* @__PURE__ */ jsx("span", { className: "md:hidden", children: "Import" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              disabled: isExporting,
+              onClick: () => {
+                setPlaying(false);
+                startExport();
+              },
+              className: "kt-btn-accent px-4 h-8 rounded-lg text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
+              children: "Done"
+            }
+          )
+        ] }) })
+      ]
+    }
+  );
+}
+function MenuItem({
+  label,
+  shortcut,
+  icon,
+  disabled,
+  onClick
+}) {
+  return /* @__PURE__ */ jsxs(
+    "button",
+    {
+      onClick,
+      disabled,
+      className: "flex items-center w-full px-3 py-2 text-sm transition-colors",
+      style: {
+        color: disabled ? "var(--kt-text-faint)" : "var(--kt-text-secondary)",
+        cursor: disabled ? "not-allowed" : "pointer"
+      },
+      onMouseEnter: (e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = "var(--kt-bg-subtle-hover)";
+          e.currentTarget.style.color = "var(--kt-text-primary)";
+        }
+      },
+      onMouseLeave: (e) => {
+        e.currentTarget.style.background = "transparent";
+        if (!disabled) e.currentTarget.style.color = "var(--kt-text-secondary)";
+      },
+      children: [
+        icon && /* @__PURE__ */ jsx("span", { className: "mr-2", children: icon }),
+        /* @__PURE__ */ jsx("span", { className: "flex-1 text-left", children: label }),
+        shortcut && /* @__PURE__ */ jsx("span", { className: "ml-4 text-[10px] tabular-nums", style: { color: "var(--kt-text-muted)" }, children: shortcut })
+      ]
+    }
+  );
 }
 
 // components/editor/Sidebar.tsx
 import { motion } from "framer-motion";
 import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+var C = {
+  trim: "#3b82f6",
+  // blue
+  crop: "#22c55e",
+  // green
+  finetune: "#a855f7",
+  // purple
+  filter: "#f43f5e",
+  // rose
+  annotate: "#f97316",
+  // orange
+  sticker: "#ec4899",
+  // pink
+  resize: "#eab308",
+  // yellow
+  voice: "#06b6d4"
+  // cyan
+};
 var TOOLS = [
   {
     id: "trim",
     label: "Trim",
-    icon: /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ jsx2("rect", { x: "3", y: "5", width: "18", height: "14", rx: "1" }),
-      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M3 9h18M3 15h18M9 5v14M15 5v14" })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("rect", { x: "2", y: "4", width: "20", height: "16", rx: "2", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M8 4v16M16 4v16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M2 9h20M2 15h20", stroke: c, opacity: "0.35" })
     ] })
   },
   {
     id: "crop",
     label: "Crop",
-    icon: /* @__PURE__ */ jsx2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14" }) })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 2v14a2 2 0 002 2h14M2 6h14a2 2 0 012 2v14", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
+    ] })
   },
   {
     id: "finetune",
-    label: "Finetune",
-    icon: /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16" }),
-      /* @__PURE__ */ jsx2("circle", { cx: "9", cy: "6", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ jsx2("circle", { cx: "15", cy: "12", r: "2", fill: "currentColor", stroke: "none" }),
-      /* @__PURE__ */ jsx2("circle", { cx: "9", cy: "18", r: "2", fill: "currentColor", stroke: "none" })
+    label: "Adjust",
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M4 6h16M4 12h16M4 18h16", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "6", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ jsx2("circle", { cx: "16", cy: "12", r: "2", fill: c, stroke: "none", opacity: "0.7" }),
+      /* @__PURE__ */ jsx2("circle", { cx: "8", cy: "18", r: "2", fill: c, stroke: "none", opacity: "0.7" })
     ] })
   },
   {
     id: "filter",
     label: "Filter",
-    icon: /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ jsx2("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18" })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("circle", { cx: "12", cy: "12", r: "9", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M12 3a9 9 0 010 18M3 12h18", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("circle", { cx: "12", cy: "12", r: "3", stroke: c, strokeWidth: 1.5, opacity: "0.45" })
     ] })
   },
   {
     id: "annotate",
     label: "Annotate",
-    icon: /* @__PURE__ */ jsx2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z" }) })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M18.5 2.5a2.121 2.121 0 013 3L13 14l-4 1 1-4 8.5-8.5z", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("circle", { cx: "16", cy: "8", r: "1.5", fill: c, stroke: "none", opacity: "0.55" })
+    ] })
   },
   {
     id: "sticker",
     label: "Sticker",
-    icon: /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: [
-      /* @__PURE__ */ jsx2("circle", { cx: "12", cy: "12", r: "9" }),
-      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M9 9h.01M15 9h.01M9 14s1 2 3 2 3-2 3-2" })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("rect", { x: "3", y: "3", width: "18", height: "18", rx: "4", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("circle", { cx: "9", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ jsx2("circle", { cx: "15", cy: "9", r: "1.5", fill: c, stroke: "none" }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 15s1.5 2 4 2 4-2 4-2", stroke: c })
     ] })
   },
   {
     id: "resize",
     label: "Resize",
-    icon: /* @__PURE__ */ jsx2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3" }) })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M8 12h8M12 8v8", stroke: c, opacity: "0.45" })
+    ] })
   },
   {
     id: "voice",
     label: "Voice",
-    icon: /* @__PURE__ */ jsx2("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", strokeWidth: 1.75, viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m-4 0h8m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" }) })
+    icon: (c) => /* @__PURE__ */ jsxs2("svg", { className: "w-5 h-5", fill: "none", viewBox: "0 0 24 24", children: [
+      /* @__PURE__ */ jsx2("rect", { x: "9", y: "2", width: "6", height: "12", rx: "3", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", d: "M5 11a7 7 0 0014 0", stroke: c, strokeWidth: 1.75 }),
+      /* @__PURE__ */ jsx2("path", { strokeLinecap: "round", strokeWidth: 1.5, d: "M12 19v3M9 22h6", stroke: c })
+    ] })
   }
 ];
 function Sidebar({ activeTool, onToolChange, horizontal }) {
@@ -1689,19 +1904,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
         {
           onClick: () => onToolChange(tool.id),
           className: "relative flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors shrink-0 kt-tool-btn",
-          style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+          style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
           children: [
             isActive && /* @__PURE__ */ jsx2(
               motion.div,
               {
                 layoutId: "sidebar-active-h",
                 className: "absolute inset-0 rounded-lg",
-                style: { background: "var(--kt-bg-subtle-hover)" },
+                style: { background: "var(--kt-accent-subtle-bg)" },
                 transition: { type: "spring", stiffness: 400, damping: 35 }
               }
             ),
-            /* @__PURE__ */ jsx2("span", { className: "relative z-10", children: tool.icon }),
-            /* @__PURE__ */ jsx2("span", { className: "relative z-10 text-[9px] font-medium leading-none", children: tool.label })
+            /* @__PURE__ */ jsx2("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+            /* @__PURE__ */ jsx2("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
           ]
         },
         tool.id
@@ -1715,19 +1930,19 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
       {
         onClick: () => onToolChange(tool.id),
         className: "relative flex flex-col items-center gap-1 py-2.5 mx-1.5 rounded-xl transition-colors kt-tool-btn",
-        style: isActive ? { color: "var(--kt-text-primary)", background: "var(--kt-bg-subtle-hover)" } : void 0,
+        style: isActive ? { color: "var(--kt-accent)", background: "var(--kt-accent-subtle-bg)" } : { color: "var(--kt-text-tertiary)" },
         children: [
           isActive && /* @__PURE__ */ jsx2(
             motion.div,
             {
               layoutId: "sidebar-active",
               className: "absolute inset-0 rounded-xl",
-              style: { background: "var(--kt-bg-subtle-hover)" },
+              style: { background: "var(--kt-accent-subtle-bg)" },
               transition: { type: "spring", stiffness: 400, damping: 35 }
             }
           ),
-          /* @__PURE__ */ jsx2("span", { className: "relative z-10", children: tool.icon }),
-          /* @__PURE__ */ jsx2("span", { className: "relative z-10 text-[10px] font-medium leading-none", children: tool.label })
+          /* @__PURE__ */ jsx2("span", { className: "relative z-10", children: tool.icon(isActive ? "var(--kt-accent)" : C[tool.id]) }),
+          /* @__PURE__ */ jsx2("span", { className: "relative z-10 text-xs font-medium leading-none", children: tool.label })
         ]
       },
       tool.id
@@ -1736,7 +1951,7 @@ function Sidebar({ activeTool, onToolChange, horizontal }) {
 }
 
 // components/editor/preview/PreviewPanel.tsx
-import { useRef as useRef7, useState as useState2, useEffect as useEffect5, useCallback as useCallback8 } from "react";
+import { useRef as useRef7, useState as useState3, useEffect as useEffect6, useCallback as useCallback9 } from "react";
 import { motion as motion2 } from "framer-motion";
 
 // components/editor/preview/PreviewCanvas.tsx
@@ -1755,7 +1970,7 @@ var PreviewCanvas = forwardRef(
 );
 
 // components/editor/preview/CropOverlay.tsx
-import { useRef as useRef2, useCallback as useCallback3 } from "react";
+import { useRef as useRef2, useCallback as useCallback4 } from "react";
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 function CropOverlay() {
   var _a, _b, _c;
@@ -1768,7 +1983,7 @@ function CropOverlay() {
   const effects = targetId ? (_c = clipEffects[targetId]) != null ? _c : DEFAULT_EFFECTS : DEFAULT_EFFECTS;
   const containerRef = useRef2(null);
   const dragRef = useRef2(null);
-  const onPointerDown = useCallback3(
+  const onPointerDown = useCallback4(
     (handle) => (e) => {
       if (!targetId) return;
       e.stopPropagation();
@@ -1783,7 +1998,7 @@ function CropOverlay() {
     },
     [targetId, effects, captureHistory]
   );
-  const onPointerMove = useCallback3(
+  const onPointerMove = useCallback4(
     (e) => {
       if (!dragRef.current || !containerRef.current || !targetId) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -1852,7 +2067,7 @@ function CropOverlay() {
     },
     [targetId, setClipEffects]
   );
-  const onPointerUp = useCallback3(() => {
+  const onPointerUp = useCallback4(() => {
     dragRef.current = null;
   }, []);
   const { cropX, cropY, cropW, cropH } = effects;
@@ -1952,7 +2167,7 @@ function CropOverlay() {
 }
 
 // components/editor/preview/OverlayLayer.tsx
-import { useRef as useRef3, useCallback as useCallback4, useState, useEffect } from "react";
+import { useRef as useRef3, useCallback as useCallback5, useState as useState2, useEffect as useEffect2 } from "react";
 import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function OverlayLayer() {
   const overlays = useEditorStore((s) => s.overlays);
@@ -1960,13 +2175,13 @@ function OverlayLayer() {
   const selectOverlay = useEditorStore((s) => s.selectOverlay);
   const updateOverlay = useEditorStore((s) => s.updateOverlay);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
-  const [visibleOverlays, setVisibleOverlays] = useState(() => {
+  const [visibleOverlays, setVisibleOverlays] = useState2(() => {
     const { currentTime } = useEditorStore.getState();
     return overlays.filter(
       (o) => o.startTime <= currentTime && currentTime < o.endTime
     );
   });
-  useEffect(() => {
+  useEffect2(() => {
     const unsub = useEditorStore.subscribe(() => {
       const { currentTime } = useEditorStore.getState();
       const { overlays: allOverlays } = useEditorStore.getState();
@@ -1980,7 +2195,7 @@ function OverlayLayer() {
   }, []);
   const containerRef = useRef3(null);
   const dragRef = useRef3(null);
-  const onPointerDown = useCallback4(
+  const onPointerDown = useCallback5(
     (overlay) => (e) => {
       e.stopPropagation();
       selectOverlay(overlay.id);
@@ -1995,7 +2210,7 @@ function OverlayLayer() {
     },
     [selectOverlay]
   );
-  const onPointerMove = useCallback4(
+  const onPointerMove = useCallback5(
     (e) => {
       if (!dragRef.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -2007,7 +2222,7 @@ function OverlayLayer() {
     },
     [updateOverlay]
   );
-  const onPointerUp = useCallback4(() => {
+  const onPointerUp = useCallback5(() => {
     dragRef.current = null;
   }, []);
   if (visibleOverlays.length === 0) return null;
@@ -2137,7 +2352,7 @@ function OverlayLayer() {
 }
 
 // components/editor/preview/DrawingCanvas.tsx
-import { useRef as useRef4, useEffect as useEffect2, useCallback as useCallback5 } from "react";
+import { useRef as useRef4, useEffect as useEffect3, useCallback as useCallback6 } from "react";
 import { jsx as jsx6 } from "react/jsx-runtime";
 function drawArrowhead2(ctx, fromX, fromY, toX, toY, headLength) {
   const angle = Math.atan2(toY - fromY, toX - fromX);
@@ -2217,7 +2432,7 @@ function DrawingCanvas({ isActive }) {
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
   const annotateMode = useEditorStore((s) => s.annotateMode);
-  useEffect2(() => {
+  useEffect3(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -2236,7 +2451,7 @@ function DrawingCanvas({ isActive }) {
     });
     return unsub;
   }, []);
-  const getRelative = useCallback5((e) => {
+  const getRelative = useCallback6((e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     return {
@@ -2245,7 +2460,7 @@ function DrawingCanvas({ isActive }) {
     };
   }, []);
   const isDrawMode = isActive && annotateMode === "draw";
-  const onPointerDown = useCallback5(
+  const onPointerDown = useCallback6(
     (e) => {
       if (!isActive || annotateMode !== "draw") return;
       setPlaying(false);
@@ -2259,7 +2474,7 @@ function DrawingCanvas({ isActive }) {
     },
     [isActive, annotateMode, getRelative, setPlaying, setPlaybackRate]
   );
-  const onPointerMove = useCallback5(
+  const onPointerMove = useCallback6(
     (e) => {
       if (!isDrawingRef.current || !isActive || annotateMode !== "draw") return;
       const canvas = canvasRef.current;
@@ -2324,7 +2539,7 @@ function DrawingCanvas({ isActive }) {
     },
     [isActive, drawingTool, drawingColor, drawingWidth, getRelative]
   );
-  const onPointerUp = useCallback5(
+  const onPointerUp = useCallback6(
     () => {
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
@@ -2399,7 +2614,7 @@ function DrawingCanvas({ isActive }) {
 }
 
 // components/editor/preview/ShapeOverlay.tsx
-import { useRef as useRef5, useEffect as useEffect3, useCallback as useCallback6 } from "react";
+import { useRef as useRef5, useEffect as useEffect4, useCallback as useCallback7 } from "react";
 
 // lib/webcodecs/PreviewEngine.ts
 var renderer = new FrameRenderer();
@@ -2518,7 +2733,7 @@ function ShapeOverlay({ isActive }) {
   const selectShape = useEditorStore((s) => s.selectShape);
   const updateShape = useEditorStore((s) => s.updateShape);
   const isShapeMode = isActive && annotateMode === "shape";
-  useEffect3(() => {
+  useEffect4(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -2552,7 +2767,7 @@ function ShapeOverlay({ isActive }) {
     });
     return unsub;
   }, [selectedShapeId]);
-  const getRelative = useCallback6((e) => {
+  const getRelative = useCallback7((e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     return {
@@ -2560,7 +2775,7 @@ function ShapeOverlay({ isActive }) {
       y: (e.clientY - rect.top) / rect.height
     };
   }, []);
-  const onPointerDown = useCallback6(
+  const onPointerDown = useCallback7(
     (e) => {
       if (!isShapeMode) return;
       const pt = getRelative(e);
@@ -2591,7 +2806,7 @@ function ShapeOverlay({ isActive }) {
     },
     [isShapeMode, getRelative, selectShape]
   );
-  const onPointerMove = useCallback6(
+  const onPointerMove = useCallback7(
     (e) => {
       if (!draggingRef.current) return;
       const pt = getRelative(e);
@@ -2628,7 +2843,7 @@ function ShapeOverlay({ isActive }) {
     },
     [getRelative, updateShape]
   );
-  const onPointerUp = useCallback6(() => {
+  const onPointerUp = useCallback7(() => {
     if (draggingRef.current) {
       useEditorStore.getState().setCurrentTime(useEditorStore.getState().currentTime);
     }
@@ -2655,7 +2870,7 @@ function ShapeOverlay({ isActive }) {
 }
 
 // hooks/usePlayback.ts
-import { useEffect as useEffect4, useRef as useRef6, useCallback as useCallback7 } from "react";
+import { useEffect as useEffect5, useRef as useRef6, useCallback as useCallback8 } from "react";
 function getActiveClipNow(time) {
   const { clips } = useEditorStore.getState();
   const clip = clips.find(
@@ -2669,10 +2884,10 @@ function usePlayback(canvasRef, onFirstFrame) {
   const rafRef = useRef6(null);
   const renderingRef = useRef6(false);
   const firstFrameFiredRef = useRef6(false);
-  useEffect4(() => {
+  useEffect5(() => {
     if (clipsLength === 0) firstFrameFiredRef.current = false;
   }, [clipsLength]);
-  const renderFrame = useCallback7(
+  const renderFrame = useCallback8(
     async (time) => {
       if (!canvasRef.current || renderingRef.current) return;
       renderingRef.current = true;
@@ -2689,7 +2904,7 @@ function usePlayback(canvasRef, onFirstFrame) {
     },
     [canvasRef, onFirstFrame]
   );
-  const renderSourceFrame = useCallback7(
+  const renderSourceFrame = useCallback8(
     async (clipId, sourceTime) => {
       var _a;
       if (!canvasRef.current || renderingRef.current) return;
@@ -2714,7 +2929,7 @@ function usePlayback(canvasRef, onFirstFrame) {
   renderFrameRef.current = renderFrame;
   const renderSourceFrameRef = useRef6(renderSourceFrame);
   renderSourceFrameRef.current = renderSourceFrame;
-  useEffect4(() => {
+  useEffect5(() => {
     let lastTime = useEditorStore.getState().currentTime;
     let lastEffects = useEditorStore.getState().clipEffects;
     let lastTrimScrub = useEditorStore.getState().trimScrub;
@@ -2744,14 +2959,14 @@ function usePlayback(canvasRef, onFirstFrame) {
       }
     });
   }, []);
-  useEffect4(() => {
+  useEffect5(() => {
     if (clipsLength === 0) return;
     const timer = setTimeout(() => {
       renderFrameRef.current(useEditorStore.getState().currentTime);
     }, 100);
     return () => clearTimeout(timer);
   }, [clipsLength]);
-  useEffect4(() => {
+  useEffect5(() => {
     if (!isPlaying) {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
@@ -2859,13 +3074,13 @@ function PreviewPanel({ activeTool }) {
   var _a;
   const canvasRef = useRef7(null);
   const fileInputRef = useRef7(null);
-  const [isMuted, setIsMuted] = useState2(true);
-  const [audioBlocked, setAudioBlocked] = useState2(false);
-  const [panX, setPanX] = useState2(0);
-  const [panY, setPanY] = useState2(0);
-  const [isPanning, setIsPanning] = useState2(false);
+  const [isMuted, setIsMuted] = useState3(true);
+  const [audioBlocked, setAudioBlocked] = useState3(false);
+  const [panX, setPanX] = useState3(0);
+  const [panY, setPanY] = useState3(0);
+  const [isPanning, setIsPanning] = useState3(false);
   const panDragRef = useRef7(null);
-  const [previewReady, setPreviewReady] = useState2(false);
+  const [previewReady, setPreviewReady] = useState3(false);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const duration = useEditorStore((s) => s.duration);
   const currentTime = useEditorStore((s) => s.currentTime);
@@ -2875,28 +3090,28 @@ function PreviewPanel({ activeTool }) {
   const storeZoom = useEditorStore((s) => s.zoom);
   const previewScale = storeZoom / 80;
   const { importFiles } = useVideoImport();
-  usePlayback(canvasRef, useCallback8(() => setPreviewReady(true), []));
-  useEffect5(() => {
+  usePlayback(canvasRef, useCallback9(() => setPreviewReady(true), []));
+  useEffect6(() => {
     if (previewScale <= 1) {
       setPanX(0);
       setPanY(0);
     }
   }, [previewScale]);
-  useEffect5(() => {
+  useEffect6(() => {
     if (clips.length === 0) setPreviewReady(false);
   }, [clips.length]);
-  const handlePanDown = useCallback8((e) => {
+  const handlePanDown = useCallback9((e) => {
     if (previewScale <= 1) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsPanning(true);
     panDragRef.current = { startX: e.clientX, startY: e.clientY, startPanX: panX, startPanY: panY };
   }, [previewScale, panX, panY]);
-  const handlePanMove = useCallback8((e) => {
+  const handlePanMove = useCallback9((e) => {
     if (!panDragRef.current) return;
     setPanX(panDragRef.current.startPanX + (e.clientX - panDragRef.current.startX));
     setPanY(panDragRef.current.startPanY + (e.clientY - panDragRef.current.startY));
   }, []);
-  const handlePanUp = useCallback8(() => {
+  const handlePanUp = useCallback9(() => {
     panDragRef.current = null;
     setIsPanning(false);
   }, []);
@@ -2912,12 +3127,12 @@ function PreviewPanel({ activeTool }) {
     const cropH = (_b = effects == null ? void 0 : effects.cropH) != null ? _b : 1;
     return `${cropW * activeClip.width}/${cropH * activeClip.height}`;
   })();
-  useEffect5(() => {
+  useEffect6(() => {
     if (!activeClip) return;
     const decoder = getDecoderForFile(activeClip.file);
     decoder.setMuted(isMuted);
   }, [isMuted, activeClip]);
-  useEffect5(() => {
+  useEffect6(() => {
     if (!isPlaying || !activeClip) return;
     const timer = setTimeout(() => {
       const decoder = getDecoderForFile(activeClip.file);
@@ -3035,7 +3250,7 @@ function PreviewPanel({ activeTool }) {
 }
 
 // components/editor/panels/TrimPanel.tsx
-import { useRef as useRef8, useCallback as useCallback9, useEffect as useEffect6, useState as useState3 } from "react";
+import { useRef as useRef8, useCallback as useCallback10, useEffect as useEffect7, useState as useState4 } from "react";
 import { useShallow as useShallow2 } from "zustand/react/shallow";
 
 // lib/timeline/timeUtils.ts
@@ -3061,7 +3276,7 @@ var thumbCache = /* @__PURE__ */ new Map();
 function TrimPanel() {
   var _a, _b, _c;
   const containerRef = useRef8(null);
-  const [containerWidth, setContainerWidth] = useState3(0);
+  const [containerWidth, setContainerWidth] = useState4(0);
   const dragRef = useRef8(null);
   const clips = useEditorStore(useShallow2((s) => s.clips.filter((c) => c.trackId === "track-video")));
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
@@ -3080,12 +3295,12 @@ function TrimPanel() {
   const muted = useEditorStore((s) => s.muted);
   const toggleMuted = useEditorStore((s) => s.toggleMuted);
   const clip = (_b = (_a = clips.find((c) => c.id === selectedClipId)) != null ? _a : clips[0]) != null ? _b : null;
-  useEffect6(() => {
+  useEffect7(() => {
     if (!selectedClipId && clips.length > 0) {
       setSelectedClip(clips[0].id);
     }
   }, [clips, selectedClipId, setSelectedClip]);
-  useEffect6(() => {
+  useEffect7(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
@@ -3096,19 +3311,19 @@ function TrimPanel() {
   }, []);
   const sourceDuration = (_c = clip == null ? void 0 : clip.sourceDuration) != null ? _c : 1;
   const zoom = containerWidth > 0 && sourceDuration > 0 ? containerWidth / sourceDuration : 1;
-  const [localSourceTime, setLocalSourceTime] = useState3(0);
+  const [localSourceTime, setLocalSourceTime] = useState4(0);
   const isDraggingRef = useRef8(false);
   const wasPlayingRef = useRef8(false);
-  useEffect6(() => {
+  useEffect7(() => {
     if (isDraggingRef.current || !clip) return;
     const src = clip.trimIn + (currentTime - clip.startTime);
     setLocalSourceTime(Math.max(0, Math.min(src, clip.sourceDuration)));
   }, [currentTime, clip]);
-  const [thumbs, setThumbs] = useState3(() => {
+  const [thumbs, setThumbs] = useState4(() => {
     var _a2;
     return (_a2 = thumbCache.get("")) != null ? _a2 : [];
   });
-  useEffect6(() => {
+  useEffect7(() => {
     if (!clip || containerWidth === 0) return;
     const cached = thumbCache.get(clip.id);
     if (cached) {
@@ -3142,7 +3357,7 @@ function TrimPanel() {
     });
   }, [clip == null ? void 0 : clip.id, containerWidth]);
   const toX = (sec) => sec * zoom;
-  const handlePointerMove = useCallback9(
+  const handlePointerMove = useCallback10(
     (e) => {
       const d = dragRef.current;
       if (!d || !clip || !containerRef.current) return;
@@ -3170,7 +3385,7 @@ function TrimPanel() {
     },
     [clip, zoom, setTrimScrub, trimClipStart, trimClipEnd]
   );
-  const handlePointerUp = useCallback9(() => {
+  const handlePointerUp = useCallback10(() => {
     if (!clip) return;
     const d = dragRef.current;
     dragRef.current = null;
@@ -3188,7 +3403,7 @@ function TrimPanel() {
       }
     }
   }, [clip, localSourceTime, duration, setCurrentTime, setTrimScrub]);
-  const beginDrag = useCallback9(
+  const beginDrag = useCallback10(
     (e, type) => {
       var _a2;
       if (!clip) return;
@@ -4465,12 +4680,12 @@ function StickerPanel() {
 }
 
 // components/editor/panels/VoiceRecorder.tsx
-import { useState as useState4, useRef as useRef10, useCallback as useCallback10, useEffect as useEffect7 } from "react";
+import { useState as useState5, useRef as useRef10, useCallback as useCallback11, useEffect as useEffect8 } from "react";
 import { useShallow as useShallow3 } from "zustand/react/shallow";
 import { Fragment as Fragment5, jsx as jsx16, jsxs as jsxs13 } from "react/jsx-runtime";
 function VoiceRecorder() {
-  const [isRecording, setIsRecording] = useState4(false);
-  const [recordingDuration, setRecordingDuration] = useState4(0);
+  const [isRecording, setIsRecording] = useState5(false);
+  const [recordingDuration, setRecordingDuration] = useState5(0);
   const mediaRecorderRef = useRef10(null);
   const chunksRef = useRef10([]);
   const timerRef = useRef10(null);
@@ -4485,13 +4700,13 @@ function VoiceRecorder() {
   const duration = useEditorStore((s) => s.duration);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  useEffect7(() => {
+  useEffect8(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
-  const startRecording = useCallback10(async () => {
+  const startRecording = useCallback11(async () => {
     setPlaying(false);
     setPlaybackRate(0);
     try {
@@ -4523,7 +4738,7 @@ function VoiceRecorder() {
       console.error("Failed to start recording:", err);
     }
   }, [addVoiceOverlay]);
-  const stopRecording = useCallback10(() => {
+  const stopRecording = useCallback11(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
@@ -4661,7 +4876,7 @@ function VoiceRecorder() {
 }
 
 // hooks/useKeyboardShortcuts.ts
-import { useEffect as useEffect8 } from "react";
+import { useEffect as useEffect9 } from "react";
 function useKeyboardShortcuts() {
   const setCurrentTime = useEditorStore((s) => s.setCurrentTime);
   const setZoomFn = useEditorStore((s) => s.setZoom);
@@ -4672,7 +4887,7 @@ function useKeyboardShortcuts() {
   const redo = useEditorStore((s) => s.redo);
   const captureHistory = useEditorStore((s) => s.captureHistory);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  useEffect8(() => {
+  useEffect9(() => {
     const handler = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const { currentTime, fps, duration, zoom, playbackRate } = useEditorStore.getState();
@@ -4766,7 +4981,7 @@ function useKeyboardShortcuts() {
 import { useShallow as useShallow4 } from "zustand/react/shallow";
 import { Fragment as Fragment6, jsx as jsx17, jsxs as jsxs14 } from "react/jsx-runtime";
 function Editor() {
-  const [activeTool, setActiveTool] = useState5("trim");
+  const [activeTool, setActiveTool] = useState6("trim");
   const setCropToolActive = useEditorStore((s) => s.setCropToolActive);
   const { status: exportStatus, progress: exportProgress, outputUrl } = useEditorStore(
     useShallow4((s) => ({ status: s.status, progress: s.progress, outputUrl: s.outputUrl }))
@@ -4778,14 +4993,14 @@ function Editor() {
   const { importFiles } = useVideoImport();
   const { downloadExport, cancelExport } = useExport();
   useKeyboardShortcuts();
-  const handleToolChange = useCallback11((tool) => {
+  const handleToolChange = useCallback12((tool) => {
     setActiveTool(tool);
     setCropToolActive(tool === "crop");
   }, [setCropToolActive]);
-  const onDragOver = useCallback11((e) => {
+  const onDragOver = useCallback12((e) => {
     e.preventDefault();
   }, []);
-  const onDrop = useCallback11(
+  const onDrop = useCallback12(
     (e) => {
       e.preventDefault();
       const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
@@ -5000,17 +5215,17 @@ import { jsx as jsx18 } from "react/jsx-runtime";
 function Kutlass({
   className,
   style,
-  theme = "dark",
   accent,
   colors,
   exportSettings,
   ffmpegPaths,
   onExportComplete
 }) {
+  const storeTheme = useEditorStore((s) => s.theme);
   const colorOverrides = useMemo(() => {
     const vars = {};
     if (accent) {
-      const derived = deriveAccentVars(accent, theme === "dark");
+      const derived = deriveAccentVars(accent, storeTheme === "dark");
       for (const [k, v] of Object.entries(derived)) vars[`--kt-${k}`] = v;
     }
     if (colors) {
@@ -5019,16 +5234,16 @@ function Kutlass({
       }
     }
     return vars;
-  }, [accent, colors, theme]);
-  useEffect9(() => {
+  }, [accent, colors, storeTheme]);
+  useEffect10(() => {
     if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
   }, [ffmpegPaths]);
-  useEffect9(() => {
+  useEffect10(() => {
     if (exportSettings) {
       useEditorStore.getState().updateExportSettings(exportSettings);
     }
   }, [exportSettings]);
-  useEffect9(() => {
+  useEffect10(() => {
     if (!onExportComplete) return;
     return useEditorStore.subscribe((state, prev) => {
       if (state.status === "done" && prev.status !== "done" && state.outputUrl) {
@@ -5039,7 +5254,6 @@ function Kutlass({
   return /* @__PURE__ */ jsx18(
     "div",
     {
-      "data-kt-theme": theme,
       className: `kutlass-editor ${className != null ? className : ""}`,
       style: __spreadValues(__spreadValues({ width: "100%", height: "100%" }, colorOverrides), style),
       children: /* @__PURE__ */ jsx18(Editor, {})

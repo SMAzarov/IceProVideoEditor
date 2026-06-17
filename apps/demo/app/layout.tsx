@@ -12,8 +12,39 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body suppressHydrationWarning className="min-h-full">{children}</body>
+    <html
+      lang="en"
+      className="h-full antialiased"
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var theme = localStorage.getItem('kt-theme');
+                if (theme !== 'light' && theme !== 'dark') theme = 'dark';
+                document.documentElement.setAttribute('data-kt-theme', theme);
+                document.documentElement.style.background = theme === 'dark' ? '#1c1c1c' : '#f0f2f5';
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body suppressHydrationWarning className="min-h-full">
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var theme = localStorage.getItem('kt-theme');
+                if (theme !== 'light' && theme !== 'dark') theme = 'dark';
+                document.body.style.background = theme === 'dark' ? '#1c1c1c' : '#f0f2f5';
+              })();
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }

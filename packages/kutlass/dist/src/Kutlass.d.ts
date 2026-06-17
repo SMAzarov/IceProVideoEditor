@@ -26,5 +26,5 @@ export interface KutlassProps {
      */
     onExportComplete?: (blob: Blob) => void;
 }
-export declare function Kutlass({ className, style, theme, accent, colors, exportSettings, ffmpegPaths, onExportComplete, }: KutlassProps): import("react").JSX.Element;
+export declare function Kutlass({ className, style, accent, colors, exportSettings, ffmpegPaths, onExportComplete, }: KutlassProps): import("react").JSX.Element;
 //# sourceMappingURL=Kutlass.d.ts.map

@@ -39,17 +39,18 @@ export interface KutlassProps {
 export function Kutlass({
   className,
   style,
-  theme = "dark",
   accent,
   colors,
   exportSettings,
   ffmpegPaths,
   onExportComplete,
 }: KutlassProps) {
+  const storeTheme = useEditorStore((s) => s.theme);
+
   const colorOverrides = useMemo(() => {
     const vars: Record<string, string> = {};
     if (accent) {
-      const derived = deriveAccentVars(accent, theme === "dark");
+      const derived = deriveAccentVars(accent, storeTheme === "dark");
       for (const [k, v] of Object.entries(derived)) vars[`--kt-${k}`] = v;
     }
     if (colors) {
@@ -58,7 +59,8 @@ export function Kutlass({
       }
     }
     return vars;
-  }, [accent, colors, theme]);
+  }, [accent, colors, storeTheme]);
+
   // Configure FFmpeg WASM paths before any export runs
   useEffect(() => {
     if (ffmpegPaths) setFFmpegPaths(ffmpegPaths);
@@ -86,7 +88,6 @@ export function Kutlass({
 
   return (
     <div
-      data-kt-theme={theme}
       className={`kutlass-editor ${className ?? ""}`}
       style={{ width: "100%", height: "100%", ...(colorOverrides as React.CSSProperties), ...style }}
     >
