@@ -14,7 +14,7 @@ import {
 import { Stroke } from "@/store/slices/drawingSlice";
 import { getDecoderForFile } from "@/lib/webcodecs/VideoDecoder";
 import { FrameRenderer } from "@/lib/webcodecs/FrameRenderer";
-import { blobToWav, padWavWithSilence, trimWavEnd, mergeWavBuffers } from "@/lib/audioUtils";
+import { blobToWav, padWavWithSilence, trimWavEnd, mergeWavBuffers, padWavEnd } from "@/lib/audioUtils";
 import { getFFmpeg } from "./ffmpegClient";
 
 export interface ExportJob {
@@ -215,11 +215,23 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
   // ── Render every frame to JPEG and write into FFmpeg FS ──────────────────
   let globalFrameIdx = 0;
-  // Total frames accounting for speed: slower speed = more frames, faster = fewer
+  // Total frames accounting for speed and freeze segments
   const totalFrames = clips.reduce((sum, c) => {
     const effects = effectsMap[c.id] ?? DEFAULT_EFFECTS;
     const speed = effects.speed ?? 1;
-    return sum + Math.ceil((c.duration * fps) / speed);
+    const base = Math.ceil((c.duration * fps) / speed);
+    // Add extra frames for freeze segments overlapping this clip
+    const clipStart = c.startTime;
+    const clipEnd = c.startTime + c.duration;
+    let extra = 0;
+    for (const f of freezes) {
+      const overlapStart = Math.max(f.startTime, clipStart);
+      const overlapEnd = Math.min(f.endTime, clipEnd);
+      if (overlapEnd > overlapStart) {
+        extra += Math.ceil((overlapEnd - overlapStart) * fps);
+      }
+    }
+    return sum + base + extra;
   }, 0);
 
   // Cache for freeze frames — when we hit a freeze segment we repeat the last rendered frame
@@ -234,25 +246,42 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
     // Number of output frames to write (adjusted for speed)
     const outputFrameCount = Math.ceil((clip.duration * fps) / speed);
 
-    for (let outIdx = 0; outIdx < outputFrameCount; outIdx++) {
+    // Calculate extra frames needed for freeze segments that overlap this clip
+    const clipStart = clip.startTime;
+    const clipEnd = clip.startTime + clip.duration;
+    let extraFreezeFrames = 0;
+    for (const f of freezes) {
+      // Freeze segment overlapping this clip
+      const overlapStart = Math.max(f.startTime, clipStart);
+      const overlapEnd = Math.min(f.endTime, clipEnd);
+      if (overlapEnd > overlapStart) {
+        extraFreezeFrames += Math.ceil((overlapEnd - overlapStart) * fps);
+      }
+    }
+    const totalOutputFrames = outputFrameCount + extraFreezeFrames;
+
+    // normalFrames tracks how many non-frozen frames we've output.
+    // It is used to calculate sourceIdx so the video doesn't jump ahead
+    // during freeze — the source frame stays locked while we repeat it.
+    let normalFrames = 0;
+
+    for (let outIdx = 0; outIdx < totalOutputFrames; outIdx++) {
       if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
 
-      // Map output frame index to source frame index based on speed
-      // speed=0.5 (slow motion): each source frame is written 2x → outIdx/2
-      // speed=2 (fast forward): every other source frame is skipped → outIdx*2
-      const srcIdx = Math.min(
-        Math.floor(outIdx * speed),
-        sourceFrameCount - 1
-      );
-      const sourceTime = clip.trimIn + srcIdx / fps;
-
-      // Determine the timeline time for this output frame
+      // frameTime is based on outIdx so it advances even during freeze.
+      // This ensures freeze segments have a finite duration — when outIdx
+      // passes freeze.endTime, isFrozen becomes false and video resumes.
       const frameTime = clip.startTime + outIdx / fps * speed;
 
       // Check if this frame falls within a freeze segment
       const isFrozen = freezes.some(
         (f) => frameTime >= f.startTime && frameTime < f.endTime
       );
+
+      // Source index is based on normalFrames — it only advances when we
+      // actually decode a new frame, not when we repeat a frozen one.
+      const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
+      const sourceTime = clip.trimIn + srcIdx / fps;
 
       let canvas: OffscreenCanvas;
 
@@ -283,6 +312,9 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
 
         // Cache this frame for potential freeze repeats
         lastFrameCanvas = canvas;
+
+        // Only advance normalFrames when we actually decoded a new frame
+        normalFrames++;
       }
 
       const ctx = canvas.getContext("2d") as OffscreenCanvasRenderingContext2D;
@@ -363,7 +395,12 @@ export async function runExport(job: ExportJob): Promise<Uint8Array> {
     if (wavBuffers.length > 0) {
       try {
         const mergedWav = mergeWavBuffers(wavBuffers);
-        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(mergedWav));
+        // Pad the merged audio with silence at the end to match the full video
+        // duration (including freeze frames), otherwise -shortest will cut the
+        // video short.
+        const videoDuration = totalFrames / fps;
+        const paddedWav = padWavEnd(mergedWav, videoDuration);
+        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(paddedWav));
         hasAudioInput = true;
       } catch (err) {
         console.warn("Voice merge failed, exporting without audio:", err);

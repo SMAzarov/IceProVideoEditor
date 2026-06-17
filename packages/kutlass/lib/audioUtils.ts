@@ -147,6 +147,45 @@ export function trimWavEnd(wavBuf: ArrayBuffer, maxDurationSeconds: number): Arr
 }
 
 /**
+ * Pad a WAV buffer with silence at the end to reach a target duration.
+ * If the WAV is already longer than targetDuration, it is returned as-is.
+ * @param wavBuf - The raw WAV file bytes (must be 16-bit PCM mono)
+ * @param targetDurationSeconds - Desired total duration in seconds
+ * @returns A new WAV buffer padded with silence at the end
+ */
+export function padWavEnd(wavBuf: ArrayBuffer, targetDurationSeconds: number): ArrayBuffer {
+  const view = new DataView(wavBuf);
+  const sampleRate = view.getUint32(24, true);
+  const dataSize = view.getUint32(40, true);
+  const numSamples = dataSize / 2;
+  const duration = numSamples / sampleRate;
+
+  if (duration >= targetDurationSeconds) return wavBuf;
+
+  const padSamples = Math.round(sampleRate * (targetDurationSeconds - duration));
+  const padBytes = padSamples * 2;
+  const newDataSize = dataSize + padBytes;
+  const newBuf = new ArrayBuffer(44 + newDataSize);
+  const newView = new DataView(newBuf);
+
+  // Copy header
+  for (let i = 0; i < 44; i++) {
+    newView.setUint8(i, view.getUint8(i));
+  }
+
+  // Update sizes
+  newView.setUint32(4, 36 + newDataSize, true);
+  newView.setUint32(40, newDataSize, true);
+
+  // Copy original PCM data (padding is already zero-initialized silence)
+  const src = new Uint8Array(wavBuf, 44, dataSize);
+  const dst = new Uint8Array(newBuf, 44, dataSize);
+  dst.set(src);
+
+  return newBuf;
+}
+
+/**
  * Merge multiple WAV buffers into a single WAV file.
  * Keeps the header from the first buffer and appends only the PCM data
  * from subsequent buffers. All buffers must be 16-bit PCM mono with the

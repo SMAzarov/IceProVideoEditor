@@ -20,6 +20,14 @@ export declare function padWavWithSilence(wavBuf: ArrayBuffer, padSeconds: numbe
  */
 export declare function trimWavEnd(wavBuf: ArrayBuffer, maxDurationSeconds: number): ArrayBuffer;
 /**
+ * Pad a WAV buffer with silence at the end to reach a target duration.
+ * If the WAV is already longer than targetDuration, it is returned as-is.
+ * @param wavBuf - The raw WAV file bytes (must be 16-bit PCM mono)
+ * @param targetDurationSeconds - Desired total duration in seconds
+ * @returns A new WAV buffer padded with silence at the end
+ */
+export declare function padWavEnd(wavBuf: ArrayBuffer, targetDurationSeconds: number): ArrayBuffer;
+/**
  * Merge multiple WAV buffers into a single WAV file.
  * Keeps the header from the first buffer and appends only the PCM data
  * from subsequent buffers. All buffers must be 16-bit PCM mono with the

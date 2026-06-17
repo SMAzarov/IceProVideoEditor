@@ -270,6 +270,9 @@ var createOverlaysSlice = (set, get) => ({
       overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "voice", startTime: currentTime, endTime })],
       selectedOverlayId: id
     }));
+    if (typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
   updateOverlay: (id, updates) => set((state) => ({
@@ -682,6 +685,28 @@ function trimWavEnd(wavBuf, maxDurationSeconds) {
   dst.set(src);
   return newBuf;
 }
+function padWavEnd(wavBuf, targetDurationSeconds) {
+  const view = new DataView(wavBuf);
+  const sampleRate = view.getUint32(24, true);
+  const dataSize = view.getUint32(40, true);
+  const numSamples = dataSize / 2;
+  const duration = numSamples / sampleRate;
+  if (duration >= targetDurationSeconds) return wavBuf;
+  const padSamples = Math.round(sampleRate * (targetDurationSeconds - duration));
+  const padBytes = padSamples * 2;
+  const newDataSize = dataSize + padBytes;
+  const newBuf = new ArrayBuffer(44 + newDataSize);
+  const newView = new DataView(newBuf);
+  for (let i = 0; i < 44; i++) {
+    newView.setUint8(i, view.getUint8(i));
+  }
+  newView.setUint32(4, 36 + newDataSize, true);
+  newView.setUint32(40, newDataSize, true);
+  const src = new Uint8Array(wavBuf, 44, dataSize);
+  const dst = new Uint8Array(newBuf, 44, dataSize);
+  dst.set(src);
+  return newBuf;
+}
 function mergeWavBuffers(buffers) {
   if (buffers.length === 0) throw new Error("No WAV buffers to merge");
   if (buffers.length === 1) return buffers[0];
@@ -897,7 +922,18 @@ async function runExport(job) {
     var _a2, _b2;
     const effects = (_a2 = effectsMap[c.id]) != null ? _a2 : DEFAULT_EFFECTS;
     const speed = (_b2 = effects.speed) != null ? _b2 : 1;
-    return sum + Math.ceil(c.duration * fps / speed);
+    const base = Math.ceil(c.duration * fps / speed);
+    const clipStart = c.startTime;
+    const clipEnd = c.startTime + c.duration;
+    let extra = 0;
+    for (const f of freezes) {
+      const overlapStart = Math.max(f.startTime, clipStart);
+      const overlapEnd = Math.min(f.endTime, clipEnd);
+      if (overlapEnd > overlapStart) {
+        extra += Math.ceil((overlapEnd - overlapStart) * fps);
+      }
+    }
+    return sum + base + extra;
   }, 0);
   let lastFrameCanvas = null;
   for (const clip of clips) {
@@ -906,17 +942,26 @@ async function runExport(job) {
     const decoder = getDecoderForFile(clip.file);
     const sourceFrameCount = Math.ceil(clip.duration * fps);
     const outputFrameCount = Math.ceil(clip.duration * fps / speed);
-    for (let outIdx = 0; outIdx < outputFrameCount; outIdx++) {
+    const clipStart = clip.startTime;
+    const clipEnd = clip.startTime + clip.duration;
+    let extraFreezeFrames = 0;
+    for (const f of freezes) {
+      const overlapStart = Math.max(f.startTime, clipStart);
+      const overlapEnd = Math.min(f.endTime, clipEnd);
+      if (overlapEnd > overlapStart) {
+        extraFreezeFrames += Math.ceil((overlapEnd - overlapStart) * fps);
+      }
+    }
+    const totalOutputFrames = outputFrameCount + extraFreezeFrames;
+    let normalFrames = 0;
+    for (let outIdx = 0; outIdx < totalOutputFrames; outIdx++) {
       if (signal == null ? void 0 : signal.aborted) throw new DOMException("Export cancelled", "AbortError");
-      const srcIdx = Math.min(
-        Math.floor(outIdx * speed),
-        sourceFrameCount - 1
-      );
-      const sourceTime = clip.trimIn + srcIdx / fps;
       const frameTime = clip.startTime + outIdx / fps * speed;
       const isFrozen = freezes.some(
         (f) => frameTime >= f.startTime && frameTime < f.endTime
       );
+      const srcIdx = Math.min(Math.floor(normalFrames * speed), sourceFrameCount - 1);
+      const sourceTime = clip.trimIn + srcIdx / fps;
       let canvas;
       if (isFrozen && lastFrameCanvas) {
         canvas = new OffscreenCanvas(outW, outH);
@@ -936,6 +981,7 @@ async function runExport(job) {
           ctx2.drawImage(tmp, 0, 0, outW, outH);
         }
         lastFrameCanvas = canvas;
+        normalFrames++;
       }
       const ctx = canvas.getContext("2d");
       const visibleStrokes = strokes.filter(
@@ -981,7 +1027,9 @@ async function runExport(job) {
     if (wavBuffers.length > 0) {
       try {
         const mergedWav = mergeWavBuffers(wavBuffers);
-        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(mergedWav));
+        const videoDuration = totalFrames / fps;
+        const paddedWav = padWavEnd(mergedWav, videoDuration);
+        await ffmpeg.writeFile("voice_mixed.wav", new Uint8Array(paddedWav));
         hasAudioInput = true;
       } catch (err) {
         console.warn("Voice merge failed, exporting without audio:", err);
@@ -3553,7 +3601,6 @@ function VoiceRecorder() {
   const timerRef = (0, import_react12.useRef)(null);
   const streamRef = (0, import_react12.useRef)(null);
   const recordingDurationRef = (0, import_react12.useRef)(0);
-  const freezeStartRef = (0, import_react12.useRef)(0);
   const overlays = useEditorStore((0, import_shallow3.useShallow)((s) => s.overlays.filter((o) => o.type === "voice")));
   const addVoiceOverlay = useEditorStore((s) => s.addVoiceOverlay);
   const removeOverlay = useEditorStore((s) => s.removeOverlay);
@@ -3563,8 +3610,6 @@ function VoiceRecorder() {
   const duration = useEditorStore((s) => s.duration);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  const addFreeze = useEditorStore((s) => s.addFreeze);
-  const currentTime = useEditorStore((s) => s.currentTime);
   (0, import_react12.useEffect)(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -3574,7 +3619,6 @@ function VoiceRecorder() {
   const startRecording = (0, import_react12.useCallback)(async () => {
     setPlaying(false);
     setPlaybackRate(0);
-    freezeStartRef.current = currentTime;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -3613,11 +3657,8 @@ function VoiceRecorder() {
       timerRef.current = null;
     }
     setIsRecording(false);
-    const freezeEnd = useEditorStore.getState().currentTime;
-    if (freezeEnd > freezeStartRef.current) {
-      addFreeze(freezeStartRef.current, freezeEnd);
-    }
-  }, [addFreeze]);
+    setPlaybackRate(1);
+  }, [setPlaybackRate]);
   const formatTime2 = (seconds) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;

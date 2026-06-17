@@ -21,5 +21,6 @@ export declare const createOverlaysSlice: (set: (fn: (state: OverlaysState & Ove
     currentTime: number;
     duration: number;
     annotationDuration: number;
+    addFreeze: (startTime: number, endTime: number) => string;
 }) => OverlaysState & OverlaysActions;
 //# sourceMappingURL=overlaysSlice.d.ts.map

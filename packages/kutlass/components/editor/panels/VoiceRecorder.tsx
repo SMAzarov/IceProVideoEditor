@@ -12,7 +12,6 @@ export function VoiceRecorder() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recordingDurationRef = useRef(0);
-  const freezeStartRef = useRef(0);
 
   const overlays = useEditorStore(useShallow((s) => s.overlays.filter((o) => o.type === "voice")));
   const addVoiceOverlay = useEditorStore((s) => s.addVoiceOverlay);
@@ -23,8 +22,6 @@ export function VoiceRecorder() {
   const duration = useEditorStore((s) => s.duration);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  const addFreeze = useEditorStore((s) => s.addFreeze);
-  const currentTime = useEditorStore((s) => s.currentTime);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -38,8 +35,6 @@ export function VoiceRecorder() {
     // Auto-pause video when starting voice recording
     setPlaying(false);
     setPlaybackRate(0);
-    // Save freeze start at current timeline position
-    freezeStartRef.current = currentTime;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -83,12 +78,9 @@ export function VoiceRecorder() {
       timerRef.current = null;
     }
     setIsRecording(false);
-    // Save freeze segment from start to current time
-    const freezeEnd = useEditorStore.getState().currentTime;
-    if (freezeEnd > freezeStartRef.current) {
-      addFreeze(freezeStartRef.current, freezeEnd);
-    }
-  }, [addFreeze]);
+    // Restore playback rate so the user can resume playback
+    setPlaybackRate(1);
+  }, [setPlaybackRate]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);

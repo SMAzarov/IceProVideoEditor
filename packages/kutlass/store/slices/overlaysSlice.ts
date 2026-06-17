@@ -20,7 +20,7 @@ export interface OverlaysActions {
 
 export const createOverlaysSlice = (
   set: (fn: (state: OverlaysState & OverlaysActions) => Partial<OverlaysState & OverlaysActions>) => void,
-  get: () => OverlaysState & OverlaysActions & { currentTime: number; duration: number; annotationDuration: number }
+  get: () => OverlaysState & OverlaysActions & { currentTime: number; duration: number; annotationDuration: number; addFreeze: (startTime: number, endTime: number) => string }
 ): OverlaysState & OverlaysActions => ({
   overlays: [],
   selectedOverlayId: null,
@@ -58,6 +58,11 @@ export const createOverlaysSlice = (
       overlays: [...state.overlays, { ...overlay, id, type: "voice", startTime: currentTime, endTime } as VoiceOverlay],
       selectedOverlayId: id,
     }));
+    // Also create a freeze segment for the duration of the voice recording
+    // so the video pauses during the voice comment in the exported video
+    if (typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
 
