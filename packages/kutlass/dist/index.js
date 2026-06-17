@@ -242,6 +242,7 @@ var createOverlaysSlice = (set, get) => ({
   overlays: [],
   selectedOverlayId: null,
   stickerDuration: 3,
+  freezeOnOverlay: true,
   addTextOverlay: (overlay) => {
     var _a, _b;
     const id = (0, import_nanoid2.nanoid)();
@@ -252,6 +253,9 @@ var createOverlaysSlice = (set, get) => ({
       overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "text", startTime: currentTime, endTime })],
       selectedOverlayId: id
     }));
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
   addStickerOverlay: (overlay) => {
@@ -264,6 +268,9 @@ var createOverlaysSlice = (set, get) => ({
       overlays: [...state.overlays, __spreadProps(__spreadValues({}, overlay), { id, type: "sticker", startTime: currentTime, endTime })],
       selectedOverlayId: id
     }));
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
   addVoiceOverlay: (overlay) => {
@@ -291,7 +298,8 @@ var createOverlaysSlice = (set, get) => ({
   })),
   selectOverlay: (id) => set(() => ({ selectedOverlayId: id })),
   clearOverlays: () => set(() => ({ overlays: [], selectedOverlayId: null })),
-  setStickerDuration: (duration) => set(() => ({ stickerDuration: duration }))
+  setStickerDuration: (duration) => set(() => ({ stickerDuration: duration })),
+  setFreezeOnOverlay: (value) => set(() => ({ freezeOnOverlay: value }))
 });
 
 // store/slices/drawingSlice.ts
@@ -313,6 +321,9 @@ function createDrawingSlice(set, get) {
           __spreadProps(__spreadValues({}, stroke), { startTime: currentTime, endTime })
         ]
       }));
+      if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+        get().addFreeze(currentTime, endTime);
+      }
     },
     undoStroke: () => set((s) => ({ strokes: s.strokes.slice(0, -1) })),
     clearStrokes: () => set(() => ({ strokes: [] })),
@@ -2239,7 +2250,6 @@ function DrawingCanvas({ isActive }) {
   const addStroke = useEditorStore((s) => s.addStroke);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  const addFreeze = useEditorStore((s) => s.addFreeze);
   const annotateMode = useEditorStore((s) => s.annotateMode);
   (0, import_react7.useEffect)(() => {
     const canvas = canvasRef.current;
@@ -2352,10 +2362,6 @@ function DrawingCanvas({ isActive }) {
     () => {
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
-      const freezeEnd = useEditorStore.getState().currentTime;
-      if (freezeEnd > freezeStartRef.current) {
-        addFreeze(freezeStartRef.current, freezeEnd);
-      }
       const pts = activeStrokeRef.current;
       if (drawingTool === "pen" || drawingTool === "eraser") {
         if (pts.length >= 2) {
@@ -2404,7 +2410,7 @@ function DrawingCanvas({ isActive }) {
       activeStrokeRef.current = [];
       startPointRef.current = null;
     },
-    [addStroke, drawingTool, drawingColor, drawingWidth, addFreeze]
+    [addStroke, drawingTool, drawingColor, drawingWidth]
   );
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
     "canvas",
@@ -3924,8 +3930,20 @@ function AnnotatePanel() {
   const clearShapes = useEditorStore((s) => s.clearShapes);
   const annotateMode = useEditorStore((s) => s.annotateMode);
   const setAnnotateMode = useEditorStore((s) => s.setAnnotateMode);
+  const freezeOnOverlay = useEditorStore((s) => s.freezeOnOverlay);
+  const setFreezeOnOverlay = useEditorStore((s) => s.setFreezeOnOverlay);
   return /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "shrink-0 border-t px-3 md:px-5 py-3", style: { borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1 mb-3", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime14.jsxs)("div", { className: "flex gap-1 mb-3 items-center", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+        "button",
+        {
+          onClick: () => setFreezeOnOverlay(!freezeOnOverlay),
+          className: `px-2 py-1 rounded text-[10px] font-semibold transition-colors shrink-0 ${freezeOnOverlay ? "kt-btn-accent" : "kt-btn-subtle"}`,
+          title: `Freeze video on overlay (1) \u2014 currently ${freezeOnOverlay ? "ON" : "OFF"}`,
+          children: freezeOnOverlay ? "\u2744\uFE0F Freeze" : "\u25B6\uFE0F No freeze"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime14.jsx)("div", { className: "w-px h-4 mx-1", style: { background: "var(--kt-border)" } }),
       /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         "button",
         {
@@ -4762,6 +4780,13 @@ function useKeyboardShortcuts() {
           if (!e.metaKey && !e.ctrlKey) {
             e.preventDefault();
             setPlaybackRate(0);
+          }
+          break;
+        case "1":
+          if (!e.metaKey && !e.ctrlKey) {
+            e.preventDefault();
+            const { freezeOnOverlay, setFreezeOnOverlay } = useEditorStore.getState();
+            setFreezeOnOverlay(!freezeOnOverlay);
           }
           break;
       }

@@ -56,11 +56,23 @@ export function AnnotatePanel() {
   const clearShapes = useEditorStore((s) => s.clearShapes);
   const annotateMode = useEditorStore((s) => s.annotateMode);
   const setAnnotateMode = useEditorStore((s) => s.setAnnotateMode);
+  const freezeOnOverlay = useEditorStore((s) => s.freezeOnOverlay);
+  const setFreezeOnOverlay = useEditorStore((s) => s.setFreezeOnOverlay);
 
   return (
     <div className="shrink-0 border-t px-3 md:px-5 py-3" style={{ borderColor: "var(--kt-border)", background: "var(--kt-bg-panel)" }}>
-      {/* Mode switcher */}
-      <div className="flex gap-1 mb-3">
+      {/* Mode switcher + freeze toggle */}
+      <div className="flex gap-1 mb-3 items-center">
+        <button
+          onClick={() => setFreezeOnOverlay(!freezeOnOverlay)}
+          className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors shrink-0 ${
+            freezeOnOverlay ? "kt-btn-accent" : "kt-btn-subtle"
+          }`}
+          title={`Freeze video on overlay (1) — currently ${freezeOnOverlay ? "ON" : "OFF"}`}
+        >
+          {freezeOnOverlay ? "❄️ Freeze" : "▶️ No freeze"}
+        </button>
+        <div className="w-px h-4 mx-1" style={{ background: "var(--kt-border)" }} />
         <button
           onClick={() => setAnnotateMode("draw")}
           className={`px-3 py-1 rounded text-xs font-medium transition-colors ${

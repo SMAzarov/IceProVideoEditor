@@ -5,6 +5,7 @@ export interface OverlaysState {
   overlays: Overlay[];
   selectedOverlayId: string | null;
   stickerDuration: number;
+  freezeOnOverlay: boolean;
 }
 
 export interface OverlaysActions {
@@ -16,6 +17,7 @@ export interface OverlaysActions {
   selectOverlay: (id: string | null) => void;
   clearOverlays: () => void;
   setStickerDuration: (duration: number) => void;
+  setFreezeOnOverlay: (value: boolean) => void;
 }
 
 export const createOverlaysSlice = (
@@ -25,6 +27,7 @@ export const createOverlaysSlice = (
   overlays: [],
   selectedOverlayId: null,
   stickerDuration: 3,
+  freezeOnOverlay: true,
 
   addTextOverlay: (overlay) => {
     const id = nanoid();
@@ -35,6 +38,10 @@ export const createOverlaysSlice = (
       overlays: [...state.overlays, { ...overlay, id, type: "text", startTime: currentTime, endTime } as TextOverlay],
       selectedOverlayId: id,
     }));
+    // Pause video during the text overlay so it's visible in the exported video
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
 
@@ -47,6 +54,10 @@ export const createOverlaysSlice = (
       overlays: [...state.overlays, { ...overlay, id, type: "sticker", startTime: currentTime, endTime } as StickerOverlay],
       selectedOverlayId: id,
     }));
+    // Pause video during the sticker overlay so it's visible in the exported video
+    if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+      get().addFreeze(currentTime, endTime);
+    }
     return id;
   },
 
@@ -84,4 +95,6 @@ export const createOverlaysSlice = (
   clearOverlays: () => set(() => ({ overlays: [], selectedOverlayId: null })),
 
   setStickerDuration: (duration) => set(() => ({ stickerDuration: duration })),
+
+  setFreezeOnOverlay: (value) => set(() => ({ freezeOnOverlay: value })),
 });

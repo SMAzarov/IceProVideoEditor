@@ -29,7 +29,7 @@ export interface DrawingActions {
 }
 
 type Set = (fn: (s: DrawingState & DrawingActions) => Partial<DrawingState & DrawingActions>) => void;
-type Get = () => DrawingState & DrawingActions & { currentTime: number; duration: number };
+type Get = () => DrawingState & DrawingActions & { currentTime: number; duration: number; freezeOnOverlay: boolean; addFreeze: (startTime: number, endTime: number) => string };
 
 export function createDrawingSlice(set: Set, get: Get): DrawingState & DrawingActions {
   return {
@@ -49,6 +49,10 @@ export function createDrawingSlice(set: Set, get: Get): DrawingState & DrawingAc
           { ...stroke, startTime: currentTime, endTime },
         ],
       }));
+      // Pause video during the drawing overlay so it's visible in the exported video
+      if (get().freezeOnOverlay && typeof get().addFreeze === "function") {
+        get().addFreeze(currentTime, endTime);
+      }
     },
     undoStroke: () => set((s) => ({ strokes: s.strokes.slice(0, -1) })),
     clearStrokes: () => set(() => ({ strokes: [] })),

@@ -107,7 +107,6 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
   const addStroke = useEditorStore((s) => s.addStroke);
   const setPlaying = useEditorStore((s) => s.setPlaying);
   const setPlaybackRate = useEditorStore((s) => s.setPlaybackRate);
-  const addFreeze = useEditorStore((s) => s.addFreeze);
   const annotateMode = useEditorStore((s) => s.annotateMode);
 
   // ── Subscribe to store changes for synced canvas updates ──────────────────
@@ -245,11 +244,6 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
     () => {
       if (!isDrawingRef.current) return;
       isDrawingRef.current = false;
-      // Save freeze segment from start to current time
-      const freezeEnd = useEditorStore.getState().currentTime;
-      if (freezeEnd > freezeStartRef.current) {
-        addFreeze(freezeStartRef.current, freezeEnd);
-      }
       const pts = activeStrokeRef.current;
 
       if (drawingTool === "pen" || drawingTool === "eraser") {
@@ -300,7 +294,7 @@ export function DrawingCanvas({ isActive }: DrawingCanvasProps) {
       activeStrokeRef.current = [];
       startPointRef.current = null;
     },
-    [addStroke, drawingTool, drawingColor, drawingWidth, addFreeze]
+    [addStroke, drawingTool, drawingColor, drawingWidth]
   );
 
   return (
