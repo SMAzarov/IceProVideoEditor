@@ -13,6 +13,7 @@
     "jsx": "react-jsx"
   },
   "references": [
+    { "path": "./tsconfig.node.json" },
     { "path": "./tsconfig.main.json" },
     { "path": "./tsconfig.renderer.json" }
   ],

@@ -1,18 +1,37 @@
-# Desktop как обёртка над demo
+# План: Перенос demo в apps/desktop (Electron standalone)
 
 ## Цель
-Упростить desktop приложение — сделать его тонкой Electron обёрткой, которая открывает demo (Next.js).
+Сделать `apps/desktop` полноценным standalone Electron-приложением, которое не зависит от demo (Next.js), а использует `kutlass` напрямую через Vite + React.
 
-## Статус
-- [x] Удалены лишние файлы (vite, renderer, tsconfig.renderer, public/ffmpeg)
-- [x] Переписан `main.ts` — открывает `http://localhost:3000` (dev) или `apps/demo/out/` (production)
-- [x] Переписан `package.json` — убраны Vite/React/kutlass, оставлен только Electron
-- [x] Переписан `tsconfig.main.json` — только main.ts
-- [x] Обновлён `.gitignore`
-- [x] Обновлён корневой `package.json` — скрипты уже были
-- [x] Обновлён `nx.json` — уже был настроен
-- [ ] Проверить сборку
+## Текущий статус
+✅ Всё готово. Desktop полностью независим от demo.
 
-## Как запускать
-1. В одном терминале: `cd apps/demo && npm run dev`
-2. В другом терминале: `cd apps/desktop && npm run dev`
+## Шаги реализации
+- [x] Проанализировать текущую структуру проекта
+- [x] Установить Vite и зависимости для renderer
+- [x] Создать Vite config для renderer
+- [x] Перенести стили (globals.css → Tailwind CSS v4)
+- [x] Перенести логику темы из layout.tsx в index.html
+- [x] Обновить App.tsx — убрать IPC, использовать прямые пути к FFmpeg
+- [x] Обновить index.html — CSP, тема, шрифты
+- [x] Обновить main.ts — загружать renderer вместо demo
+- [x] Обновить package.json scripts для Vite-based сборки
+- [x] Обновить tsconfig.renderer.json
+- [x] Обновить electron-builder конфиг
+- [x] Обновить nx.json targets
+- [x] Проверить сборку (vite build — успешно)
+- [x] Проверить dev-режим (vite dev — успешно)
+- [x] Проверить production-режим (electron . — успешно)
+- [x] Исправить TypeScript ошибки в vite.config.ts
+- [x] Исправить ошибку electron-builder "file size cannot be larger than 4.2GB":
+  - [x] Добавлен `!dist/installers` в исключения files
+  - [x] Добавлен `author` в package.json
+  - [x] Проверена сборка DMG (успешно, 124 MB)
+
+## Критерии проверки
+- ✅ `npm run dev:desktop` запускает Vite dev server + Electron
+- ✅ `npm run build:desktop:mac` собирает production DMG
+- ✅ FFmpeg WASM в extraResources
+- ✅ Редактор работает как standalone Electron-приложение
+- ✅ TypeScript ошибки в vite.config.ts исправлены
+- ✅ Повторные сборки не падают с ошибкой asar

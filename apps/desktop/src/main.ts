@@ -5,19 +5,6 @@ let mainWindow: BrowserWindow | null = null;
 
 const isDev = !app.isPackaged;
 
-function getDemoUrl(): string {
-  if (isDev) {
-    // In development, demo runs on localhost:3000
-    return "http://localhost:3000";
-  }
-  // In production, load the static export from extraResources
-  const resourcesPath = process.resourcesPath;
-  const demoPath = path.join(resourcesPath, "demo/out/index.html");
-  console.log("[Kutlass Desktop] resourcesPath:", resourcesPath);
-  console.log("[Kutlass Desktop] demoPath:", demoPath);
-  return demoPath;
-}
-
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -33,13 +20,14 @@ function createWindow(): void {
     },
   });
 
-  const url = getDemoUrl();
-
   if (isDev) {
-    mainWindow.loadURL(url);
+    // In development, Vite dev server runs on localhost:5173
+    mainWindow.loadURL("http://localhost:5173");
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(url);
+    // In production, load the built renderer
+    const rendererPath = path.join(__dirname, "renderer", "index.html");
+    mainWindow.loadFile(rendererPath);
   }
 
   mainWindow.on("closed", () => {

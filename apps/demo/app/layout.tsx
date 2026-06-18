@@ -18,6 +18,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="stylesheet" href="/kutlass.css" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

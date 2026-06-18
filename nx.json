@@ -49,6 +49,13 @@
           "command": "cd apps/desktop && npm run build:linux",
           "cwd": "{workspaceRoot}"
         }
+      },
+      "preview": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run preview",
+          "cwd": "{workspaceRoot}"
+        }
       }
     }
   }

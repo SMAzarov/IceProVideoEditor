@@ -2,62 +2,96 @@
   "name": "kutlass-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Kutlass Video Editor - Desktop App (Electron wrapper over demo)",
+  "description": "IcePro Video Editor - Desktop App",
+  "author": "Sergey Azarov <sazarov@gmail.com>",
   "main": "dist/main.js",
-  "installConfig": {
-    "hoistingLimits": "workspaces"
-  },
   "scripts": {
-    "dev": "tsc -p tsconfig.main.json && electron .",
-    "build": "tsc -p tsconfig.main.json && electron-builder",
-    "build:mac": "tsc -p tsconfig.main.json && electron-builder --mac",
-    "build:win": "tsc -p tsconfig.main.json && electron-builder --win",
-    "build:linux": "tsc -p tsconfig.main.json && electron-builder --linux",
+    "dev": "vite",
+    "build": "vite build && electron-builder",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:win": "vite build && electron-builder --win",
+    "build:linux": "vite build && electron-builder --linux",
+    "build:desktop": "vite build && electron-builder",
+    "build:desktop:mac": "vite build && electron-builder --mac",
+    "build:desktop:win": "vite build && electron-builder --win",
+    "build:desktop:linux": "vite build && electron-builder --linux",
+    "preview": "vite build && electron .",
     "postinstall": "electron-builder install-app-deps || true"
   },
+  "dependencies": {
+    "kutlass": "*",
+    "react": "^19",
+    "react-dom": "^19"
+  },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0",
-    "typescript": "^5"
+    "tailwindcss": "^4.3.1",
+    "typescript": "^5",
+    "vite": "^8.0.16",
+    "vite-plugin-electron": "^1.0.4",
+    "vite-plugin-electron-renderer": "^1.0.0"
   },
   "build": {
     "appId": "com.kutlass.editor",
-    "productName": "Kutlass Video Editor",
+    "productName": "IcePro Video Editor",
     "electronVersion": "35.0.0",
     "npmRebuild": false,
     "directories": {
       "output": "dist/installers"
     },
     "files": [
-      "dist/main.js"
+      "dist/**/*",
+      "!dist/installers"
     ],
     "extraResources": [
       {
-        "from": "../demo/out",
-        "to": "demo/out"
-      },
-      {
-        "from": "../demo/public/ffmpeg",
+        "from": "public/ffmpeg",
         "to": "ffmpeg"
       }
     ],
     "mac": {
       "category": "public.app-category.video",
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-win-x64.${ext}"
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-linux-x64.${ext}",
       "category": "Video"
