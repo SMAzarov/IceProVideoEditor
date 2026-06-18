@@ -12,5 +12,44 @@
     }
   },
   "defaultBase": "main",
-  "analytics": true
+  "analytics": true,
+  "targets": {
+    "kutlass-desktop": {
+      "dev": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run dev",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run build",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "build:mac": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run build:mac",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "build:win": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run build:win",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "build:linux": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "cd apps/desktop && npm run build:linux",
+          "cwd": "{workspaceRoot}"
+        }
+      }
+    }
+  }
 }

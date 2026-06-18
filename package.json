@@ -11,7 +11,12 @@
     "lint": "nx run-many -t lint",
     "test": "nx run kutlass:test",
     "build:lib": "nx run kutlass:build",
-    "build:app": "nx run kutlass-demo:build"
+    "build:app": "nx run kutlass-demo:build",
+    "dev:desktop": "nx run kutlass-desktop:dev",
+    "build:desktop": "nx run kutlass-desktop:build",
+    "build:desktop:mac": "nx run kutlass-desktop:build:mac",
+    "build:desktop:win": "nx run kutlass-desktop:build:win",
+    "build:desktop:linux": "nx run kutlass-desktop:build:linux"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
